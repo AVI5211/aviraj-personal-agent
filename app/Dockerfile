@@ -13,9 +13,12 @@ FROM node:22-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=8080
 
-COPY --from=builder /app ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-EXPOSE 3000
+EXPOSE 8080
 
-CMD ["npm", "run", "start", "--", "-H", "0.0.0.0"]
+CMD ["node", "server.js"]
