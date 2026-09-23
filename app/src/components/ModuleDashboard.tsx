@@ -29,7 +29,11 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<HistoryFilters>({ type: "", category: "", paymentMethod: "" });
 
-  const [formState, setFormState] = useState<{ type: "income" | "expense"; existing?: TransactionApi } | null>(null);
+  const [formState, setFormState] = useState<{
+    type: "income" | "expense";
+    existing?: TransactionApi;
+    initialCategory?: string;
+  } | null>(null);
 
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
 
@@ -142,7 +146,7 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
         </div>
       )}
 
-      <div className="mb-6 flex gap-3">
+      <div className="mb-6 flex flex-wrap gap-3">
         <button
           onClick={() => setFormState({ type: "income" })}
           className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white"
@@ -155,6 +159,14 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
         >
           + Add Expense
         </button>
+        {module === "personal" && (
+          <button
+            onClick={() => setFormState({ type: "expense", initialCategory: "security_deposit" })}
+            className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white sm:flex-1"
+          >
+            + Security Deposit Given
+          </button>
+        )}
       </div>
 
       <div className="mb-6">
@@ -183,6 +195,7 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
           module={module}
           type={formState.type}
           existing={formState.existing}
+          initialCategory={formState.initialCategory}
           onClose={() => setFormState(null)}
           onSaved={handleSaved}
         />

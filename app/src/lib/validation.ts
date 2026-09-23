@@ -27,6 +27,7 @@ export const PERSONAL_EXPENSE_CATEGORIES = [
   "health",
   "entertainment",
   "shopping",
+  "security_deposit",
   "other",
 ] as const;
 // Personal income with this category represents money drawn from the shop into personal

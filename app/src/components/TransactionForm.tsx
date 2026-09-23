@@ -27,6 +27,7 @@ const PERSONAL_EXPENSE_CATEGORIES = [
   "health",
   "entertainment",
   "shopping",
+  "security_deposit",
   "other",
 ];
 const PERSONAL_INCOME_CATEGORIES = [
@@ -53,15 +54,16 @@ interface TransactionFormProps {
   module: Module;
   type: TransactionType;
   existing?: TransactionApi;
+  initialCategory?: string;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function TransactionForm({ module, type, existing, onClose, onSaved }: TransactionFormProps) {
+export function TransactionForm({ module, type, existing, initialCategory, onClose, onSaved }: TransactionFormProps) {
   const isEdit = Boolean(existing);
   const [amount, setAmount] = useState(existing ? (existing.amountPaise / 100).toString() : "");
   const [date, setDate] = useState(existing?.transactionDate ?? todayLocalDateValue());
-  const [category, setCategory] = useState(existing?.category ?? defaultCategoryFor(module, type));
+  const [category, setCategory] = useState(existing?.category ?? initialCategory ?? defaultCategoryFor(module, type));
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "cash");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [error, setError] = useState<string | null>(null);

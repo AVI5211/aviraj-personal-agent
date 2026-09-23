@@ -60,7 +60,7 @@ export function AdminOverview() {
             <Card label="Receivables" value={overview.receivables} />
           </div>
 
-          <Section title="Income sources">
+          <Section title="Income & security deposits">
             <Row
               label="Perforce salary (CTC earned)"
               value={overview.incomeSources.salary}
@@ -68,7 +68,7 @@ export function AdminOverview() {
             />
             <Row label="Freelancing" value={overview.incomeSources.freelance} />
             <Row label="Shop revenue" value={overview.incomeSources.shop} />
-            <Row label="Other personal income" value={overview.incomeSources.otherPersonal} />
+            <Row label="Security deposits given" value={overview.incomeSources.securityDepositsGiven} negative />
             <Row label="Total income (this period)" value={overview.monthlyIncome} bold />
           </Section>
 

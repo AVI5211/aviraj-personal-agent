@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
   let shopExpense = 0;
   let personalExpense = 0;
   let personalOtherIncome = 0;
+  let securityDepositsGiven = 0;
 
   for (const row of byModuleTypeCategory) {
     if (row._id.module === "shop") {
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
     } else {
       if (row._id.type === "expense") {
         personalExpense += row.total;
+        if (row._id.category === "security_deposit") securityDepositsGiven += row.total;
       } else if (row._id.category === SHOP_DRAW_CATEGORY) {
         // Money already counted once as shop revenue above — skip it here so it
         // isn't double-counted as "other personal income" once it's drawn out.
@@ -141,6 +143,7 @@ export async function GET(request: NextRequest) {
       shop: shopIncome,
       freelance: freelanceIncome,
       otherPersonal: personalOtherIncome,
+      securityDepositsGiven,
     },
     shopNetCashFlow: shopIncome - shopExpense,
     receivables,

@@ -268,6 +268,7 @@ export interface AdminOverviewResponse {
     shop: number;
     freelance: number;
     otherPersonal: number;
+    securityDepositsGiven: number;
   };
   shopNetCashFlow: number;
   receivables: number;
