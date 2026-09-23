@@ -5,7 +5,22 @@ import type { Module, PaymentMethod, TransactionApi, TransactionType } from "@/l
 import { formatPaiseAsInr } from "@/lib/money";
 
 const CATEGORY_OPTIONS: Record<Module, string[]> = {
-  shop: ["shop_sales", "stock", "rent", "electricity", "salary", "transport", "other"],
+  shop: [
+    "shop_sales",
+    "stock",
+    "rent",
+    "electricity",
+    "salary",
+    "transport",
+    "renovation",
+    "maintenance",
+    "equipment",
+    "marketing",
+    "packaging",
+    "insurance",
+    "fees_taxes",
+    "other",
+  ],
   personal: [
     "shop_draw",
     "groceries",

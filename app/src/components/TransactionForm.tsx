@@ -3,7 +3,21 @@
 import { useState, type FormEvent } from "react";
 import type { Module, PaymentMethod, TransactionApi, TransactionType } from "@/lib/types";
 
-const SHOP_EXPENSE_CATEGORIES = ["stock", "rent", "electricity", "salary", "transport", "other"];
+const SHOP_EXPENSE_CATEGORIES = [
+  "stock",
+  "rent",
+  "electricity",
+  "salary",
+  "transport",
+  "renovation",
+  "maintenance",
+  "equipment",
+  "marketing",
+  "packaging",
+  "insurance",
+  "fees_taxes",
+  "other",
+];
 const PERSONAL_EXPENSE_CATEGORIES = [
   "groceries",
   "rent",

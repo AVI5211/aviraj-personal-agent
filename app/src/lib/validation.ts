@@ -3,7 +3,21 @@ import { isValidDateString } from "@/lib/dates";
 
 export const MODULES = ["shop", "personal"] as const;
 export const PAYMENT_METHODS = ["bharatpe", "cash", "bank_transfer", "other"] as const;
-export const SHOP_EXPENSE_CATEGORIES = ["stock", "rent", "electricity", "salary", "transport", "other"] as const;
+export const SHOP_EXPENSE_CATEGORIES = [
+  "stock",
+  "rent",
+  "electricity",
+  "salary",
+  "transport",
+  "renovation",
+  "maintenance",
+  "equipment",
+  "marketing",
+  "packaging",
+  "insurance",
+  "fees_taxes",
+  "other",
+] as const;
 export const PERSONAL_EXPENSE_CATEGORIES = [
   "groceries",
   "rent",
