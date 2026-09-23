@@ -126,7 +126,8 @@ export async function GET(request: NextRequest) {
     else otherAssetsTotal += account.balancePaise;
   }
 
-  const netWorth = cashAndBank + investmentsTotal + pfTotal + otherAssetsTotal - liabilitiesTotal;
+  const personalReceivables = pendingPersonalReceivables[0]?.total ?? 0;
+  const netWorth = cashAndBank + investmentsTotal + pfTotal + otherAssetsTotal + personalReceivables - liabilitiesTotal;
 
   return NextResponse.json({
     range,
@@ -148,6 +149,6 @@ export async function GET(request: NextRequest) {
     },
     shopNetCashFlow: shopIncome - shopExpense,
     receivables,
-    personalReceivables: pendingPersonalReceivables[0]?.total ?? 0,
+    personalReceivables,
   });
 }
