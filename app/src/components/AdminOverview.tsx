@@ -45,12 +45,13 @@ export function AdminOverview() {
 
       {overview && (
         <>
-          <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-lg shadow-slate-300/50">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-300">Total net worth</p>
-            <p className={`mt-1 text-3xl font-bold tracking-tight ${overview.netWorth >= 0 ? "text-white" : "text-red-300"}`}>
+          <div className="relative mb-6 overflow-hidden rounded-2xl border-2 border-emerald-300 bg-white p-5 shadow-sm">
+            <LeafCelebration />
+            <p className="relative text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">Total net worth</p>
+            <p className={`relative mt-1 text-3xl font-bold tracking-tight ${overview.netWorth >= 0 ? "text-slate-950" : "text-red-600"}`}>
               {formatPaiseAsInr(overview.netWorth)}
             </p>
-            <p className="mt-1 text-xs text-slate-400">Assets minus outstanding liabilities</p>
+            <p className="relative mt-1 text-xs text-slate-500">Assets minus outstanding liabilities</p>
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
@@ -94,6 +95,10 @@ export function AdminOverview() {
       )}
     </div>
   );
+}
+
+function LeafCelebration() {
+  return <div aria-hidden="true" className="leaf-celebration">{Array.from({ length: 8 }, (_, index) => <span key={index} />)}</div>;
 }
 
 function Card({ label, value, tone }: { label: string; value: number; tone?: "positive" | "negative" }) {
