@@ -376,6 +376,27 @@ export function FreelanceManager() {
     });
   }
 
+  function toggleClientSelection(logs: WorkLogApi[], select: boolean) {
+    setSelectedLogIds((prev) => {
+      const next = new Set(prev);
+      for (const log of logs) {
+        if (select) next.add(log.id);
+        else next.delete(log.id);
+      }
+      return next;
+    });
+  }
+
+  const unbilledByClient = useMemo(() => {
+    const groups = new Map<string, WorkLogApi[]>();
+    for (const log of workLogs) {
+      const list = groups.get(log.clientId) ?? [];
+      list.push(log);
+      groups.set(log.clientId, list);
+    }
+    return Array.from(groups.entries());
+  }, [workLogs]);
+
   const selectedLogs = workLogs.filter((log) => selectedLogIds.has(log.id));
   const selectedClientIds = new Set(selectedLogs.map((log) => log.clientId));
   const canIssueInvoice = selectedLogs.length > 0 && selectedClientIds.size === 1;
@@ -808,26 +829,86 @@ export function FreelanceManager() {
       <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-600">Unbilled Work (batch invoicing)</h2>
 
-        <div className="mb-3 divide-y divide-slate-100">
-          {workLogs.length === 0 && <p className="py-4 text-sm text-slate-500">No unbilled work.</p>}
-          {workLogs.map((log) => {
-            const client = clientById.get(log.clientId);
-            const epic = log.epicId ? epicById.get(log.epicId) : null;
-            return (
-              <label key={log.id} className="flex items-center gap-3 py-2 text-sm">
-                <input type="checkbox" checked={selectedLogIds.has(log.id)} onChange={() => toggleLogSelection(log.id)} />
-                <span className="flex-1">
-                  <span className="font-medium text-slate-800">{client?.name ?? "Unknown client"}</span>{" "}
-                  {epic && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{epic.name}</span>}{" "}
-                  <span className="text-slate-500">
-                    {log.date} · {log.billableHours}h billable{log.description ? ` · ${log.description}` : ""}
-                  </span>
-                  {log.notes && <span className="block text-xs text-slate-400">{log.notes}</span>}
+        {workLogs.length === 0 && <p className="py-4 text-sm text-slate-500">No unbilled work.</p>}
+
+        {unbilledByClient.map(([clientId, logs]) => {
+          const client = clientById.get(clientId);
+          const allSelected = logs.every((log) => selectedLogIds.has(log.id));
+          const someSelected = logs.some((log) => selectedLogIds.has(log.id));
+          return (
+            <div key={clientId} className="mb-4 overflow-hidden rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between bg-slate-50 px-3 py-2">
+                <span className="text-sm font-semibold text-slate-700">{client?.name ?? "Unknown client"}</span>
+                <span className="text-xs text-slate-500">
+                  {logs.reduce((s, l) => s + l.billableHours, 0)}h across {logs.length} entries
                 </span>
-              </label>
-            );
-          })}
-        </div>
+              </div>
+              <div className="max-h-96 overflow-y-auto overflow-x-auto">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-white text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-slate-200">
+                      <th className="w-9 px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someSelected && !allSelected;
+                          }}
+                          onChange={() => toggleClientSelection(logs, !allSelected)}
+                        />
+                      </th>
+                      <th className="whitespace-nowrap px-3 py-2">Epic</th>
+                      <th className="whitespace-nowrap px-3 py-2">Date</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right">Hours</th>
+                      <th className="px-3 py-2">Task</th>
+                      <th className="px-3 py-2">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {logs.map((log) => {
+                      const epic = log.epicId ? epicById.get(log.epicId) : null;
+                      const isSelected = selectedLogIds.has(log.id);
+                      return (
+                        <tr key={log.id} className={isSelected ? "bg-slate-50" : undefined}>
+                          <td className="px-3 py-2 align-top">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleLogSelection(log.id)}
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 align-top">
+                            {epic ? (
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                {epic.name}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 align-top text-slate-600">{log.date}</td>
+                          <td className="whitespace-nowrap px-3 py-2 align-top text-right font-medium text-slate-800">
+                            {log.billableHours}h
+                          </td>
+                          <td className="max-w-xs px-3 py-2 align-top">
+                            <span className="line-clamp-2 text-slate-700" title={log.description}>
+                              {log.description || "—"}
+                            </span>
+                          </td>
+                          <td className="max-w-[12rem] px-3 py-2 align-top">
+                            <span className="line-clamp-2 text-xs text-slate-400" title={log.notes}>
+                              {log.notes || "—"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
 
         <button
           type="button"
