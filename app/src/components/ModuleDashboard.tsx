@@ -1,20 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { TransactionHistory, type HistoryFilters } from "@/components/TransactionHistory";
 import { TransactionForm } from "@/components/TransactionForm";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { TrendChart } from "@/components/TrendChart";
 import { resolvePeriod } from "@/lib/dates";
 import { formatPaiseAsInr } from "@/lib/money";
-import type { Period, SummaryResponse, TransactionApi, TrendPoint } from "@/lib/types";
+import type { Module, Period, SummaryResponse, TransactionApi, TrendPoint } from "@/lib/types";
 
 const PAGE_SIZE = 20;
 
-export function Dashboard() {
-  const router = useRouter();
+interface ModuleDashboardProps {
+  module: Module;
+  title: string;
+}
 
+export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
   const [period, setPeriod] = useState<Period>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -41,18 +43,18 @@ export function Dashboard() {
 
   const fetchSummary = useCallback(async () => {
     if (!canQuery) return;
-    const params = new URLSearchParams({ period });
+    const params = new URLSearchParams({ module, period });
     if (period === "custom") {
       params.set("from", customFrom);
       params.set("to", customTo);
     }
     const response = await fetch(`/api/reports/summary?${params.toString()}`);
     if (response.ok) setSummary(await response.json());
-  }, [period, customFrom, customTo, canQuery]);
+  }, [module, period, customFrom, customTo, canQuery]);
 
   const fetchTransactions = useCallback(async () => {
     if (!canQuery) return;
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    const params = new URLSearchParams({ module, page: String(page), pageSize: String(PAGE_SIZE) });
     if (range.from) params.set("from", range.from);
     if (range.to) params.set("to", range.to);
     if (filters.type) params.set("type", filters.type);
@@ -65,15 +67,15 @@ export function Dashboard() {
       setTransactions(data.transactions);
       setTotal(data.total);
     }
-  }, [page, filters, range, canQuery]);
+  }, [module, page, filters, range, canQuery]);
 
   const fetchTrends = useCallback(async () => {
-    const response = await fetch("/api/reports/trends?months=12");
+    const response = await fetch(`/api/reports/trends?module=${module}&months=12`);
     if (response.ok) {
       const data = await response.json();
       setTrends(data.trends);
     }
-  }, []);
+  }, [module]);
 
   useEffect(() => {
     fetchSummary();
@@ -104,20 +106,9 @@ export function Dashboard() {
     fetchTrends();
   }
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
-
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Shop Hisab Kitab</h1>
-        <button onClick={handleLogout} className="text-sm text-slate-500 hover:text-slate-800">
-          Sign out
-        </button>
-      </div>
+    <div>
+      <h1 className="mb-6 text-xl font-semibold">{title}</h1>
 
       <div className="mb-6">
         <PeriodFilter
@@ -139,11 +130,15 @@ export function Dashboard() {
             value={summary.netCashFlow}
             tone={summary.netCashFlow >= 0 ? "positive" : "negative"}
           />
-          <SummaryCard label="BharatPe" value={summary.incomeByMethod.bharatpe ?? 0} />
-          <SummaryCard label="Cash" value={summary.incomeByMethod.cash ?? 0} />
-          <SummaryCard label="Bank Transfer" value={summary.incomeByMethod.bank_transfer ?? 0} />
-          <SummaryCard label="Opening Balance" value={summary.openingBalance} />
-          <SummaryCard label="Closing Balance" value={summary.closingBalance} />
+          {module === "shop" && (
+            <>
+              <SummaryCard label="BharatPe" value={summary.incomeByMethod.bharatpe ?? 0} />
+              <SummaryCard label="Cash" value={summary.incomeByMethod.cash ?? 0} />
+              <SummaryCard label="Bank Transfer" value={summary.incomeByMethod.bank_transfer ?? 0} />
+              <SummaryCard label="Opening Balance" value={summary.openingBalance} />
+              <SummaryCard label="Closing Balance" value={summary.closingBalance} />
+            </>
+          )}
         </div>
       )}
 
@@ -170,6 +165,7 @@ export function Dashboard() {
       <div>
         <h2 className="mb-2 text-sm font-semibold text-slate-600">History</h2>
         <TransactionHistory
+          module={module}
           transactions={transactions}
           total={total}
           page={page}
@@ -184,13 +180,14 @@ export function Dashboard() {
 
       {formState && (
         <TransactionForm
+          module={module}
           type={formState.type}
           existing={formState.existing}
           onClose={() => setFormState(null)}
           onSaved={handleSaved}
         />
       )}
-    </main>
+    </div>
   );
 }
 

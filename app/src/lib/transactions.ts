@@ -1,8 +1,9 @@
 import { ObjectId } from "mongodb";
-import type { TransactionApi, TransactionType, PaymentMethod } from "@/lib/types";
+import type { TransactionApi, TransactionType, PaymentMethod, Module } from "@/lib/types";
 
 export interface TransactionDoc {
   _id: ObjectId;
+  module: Module;
   type: TransactionType;
   amountPaise: number;
   category: string;
@@ -17,6 +18,7 @@ export interface TransactionDoc {
 export function serializeTransaction(doc: TransactionDoc): TransactionApi {
   return {
     id: doc._id.toString(),
+    module: doc.module,
     type: doc.type,
     amountPaise: doc.amountPaise,
     category: doc.category,

@@ -38,8 +38,8 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
-        <h1 className="mb-1 text-xl font-semibold">Shop Hisab Kitab</h1>
-        <p className="mb-6 text-sm text-slate-500">Sign in to view your dashboard</p>
+        <h1 className="mb-1 text-xl font-semibold">Aviraj Personal Admin</h1>
+        <p className="mb-6 text-sm text-slate-500">Sign in to view your financial command center</p>
 
         <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="username">
           Username

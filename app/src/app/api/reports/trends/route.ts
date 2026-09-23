@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const rows = await db
     .collection("transactions")
     .aggregate<MonthGroupResult>([
-      { $match: { transactionDate: { $gte: fromDate } } },
+      { $match: { module: parsed.data.module, transactionDate: { $gte: fromDate } } },
       {
         $group: {
           _id: { month: { $substrBytes: ["$transactionDate", 0, 7] }, type: "$type" },

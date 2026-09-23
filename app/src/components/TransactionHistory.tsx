@@ -1,10 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PaymentMethod, TransactionApi, TransactionType } from "@/lib/types";
+import type { Module, PaymentMethod, TransactionApi, TransactionType } from "@/lib/types";
 import { formatPaiseAsInr } from "@/lib/money";
 
-const CATEGORY_OPTIONS = ["shop_sales", "stock", "rent", "electricity", "salary", "transport", "other"];
+const CATEGORY_OPTIONS: Record<Module, string[]> = {
+  shop: ["shop_sales", "stock", "rent", "electricity", "salary", "transport", "other"],
+  personal: [
+    "shop_draw",
+    "groceries",
+    "rent",
+    "utilities",
+    "transport",
+    "health",
+    "entertainment",
+    "shopping",
+    "other",
+  ],
+};
 const PAYMENT_METHOD_OPTIONS: PaymentMethod[] = ["bharatpe", "cash", "bank_transfer", "other"];
 
 export interface HistoryFilters {
@@ -14,6 +27,7 @@ export interface HistoryFilters {
 }
 
 interface TransactionHistoryProps {
+  module: Module;
   transactions: TransactionApi[];
   total: number;
   page: number;
@@ -26,6 +40,7 @@ interface TransactionHistoryProps {
 }
 
 export function TransactionHistory({
+  module,
   transactions,
   total,
   page,
@@ -76,7 +91,7 @@ export function TransactionHistory({
           className="rounded-md border border-slate-300 px-2 py-1 text-sm"
         >
           <option value="">All categories</option>
-          {CATEGORY_OPTIONS.map((c) => (
+          {CATEGORY_OPTIONS[module].map((c) => (
             <option key={c} value={c}>
               {c.replace("_", " ")}
             </option>

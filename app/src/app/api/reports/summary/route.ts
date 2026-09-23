@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
 
   const db = await getDb();
   const transactions = db.collection("transactions");
-  const rangeFilter = buildDateRangeFilter(range.from, range.to);
+  const moduleFilter = { module: parsed.data.module };
+  const rangeFilter = { ...moduleFilter, ...buildDateRangeFilter(range.from, range.to) };
 
   const [byMethod, byCategory, baseOpeningBalance, priorTotals] = await Promise.all([
     transactions
@@ -59,11 +60,11 @@ export async function GET(request: NextRequest) {
         { $group: { _id: "$category", total: { $sum: "$amountPaise" } } },
       ])
       .toArray(),
-    getOpeningBalancePaise(),
+    parsed.data.module === "shop" ? getOpeningBalancePaise() : Promise.resolve(0),
     range.from
       ? transactions
           .aggregate<TypeGroupResult>([
-            { $match: { transactionDate: { $lt: range.from } } },
+            { $match: { ...moduleFilter, transactionDate: { $lt: range.from } } },
             { $group: { _id: "$type", total: { $sum: "$amountPaise" } } },
           ])
           .toArray()

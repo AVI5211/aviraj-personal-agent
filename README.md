@@ -1,10 +1,24 @@
-# Shop Hisab Kitab
+# Aviraj Personal Admin
 
-A private, self-hosted cash-flow dashboard for a single retail shop: track daily BharatPe QR
-collections, cash income, and expenses, with opening/closing balance and monthly trends.
+A private, self-hosted financial command center: consolidated net worth and cash flow across
+salary, shop, and personal finances, in one Docker Compose app backed by MongoDB.
 
-Not an ERP, inventory system, or CRM — see `docs/superpowers/specs/2026-09-23-shop-hisab-kitab-design.md`
-for the full v1 design and scope decisions.
+See `docs/superpowers/specs/` for the full design history:
+- `2026-09-23-shop-hisab-kitab-design.md` — original shop-only v1
+- `2026-09-23-aviraj-personal-admin-phase1-design.md` — current scope and what's deferred
+
+## Modules (Phase 1)
+
+- **Overview** (`/`) — consolidated net worth, monthly income/expense, income-by-source, with a
+  date filter (today/week/month/last month/year/custom/all-time)
+- **Salary** (`/salary`) — monthly gross/deductions/net salary records
+- **Shop** (`/shop`) — the original shop hisab-kitab: BharatPe/cash income, expenses, history
+- **Personal** (`/personal`) — account balances (bank, cash, investments, PF, loans) for net
+  worth, plus personal income/expense tracking
+
+Freelancing, per-loan repayment schedules, detailed investment holdings, and automation
+(recurring salary/PF/EMI entries, scheduled backups) are deferred — each needs its own design
+pass before being built (see the phase-1 design doc).
 
 ## Stack
 
@@ -23,7 +37,7 @@ for the full v1 design and scope decisions.
    - `MONGO_USER` / `MONGO_PASSWORD` — MongoDB root credentials (internal network only)
    - `SESSION_SECRET` — 32+ random characters, e.g. `openssl rand -base64 32`
    - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — the one login for the dashboard
-   - `OPENING_BALANCE_PAISE` — starting cash balance in paise (e.g. `1000000` = ₹10,000.00)
+   - `OPENING_BALANCE_PAISE` — shop's starting cash balance in paise (e.g. `1000000` = ₹10,000.00)
    - `COOKIE_SECURE` — leave `false` unless the app is reachable over HTTPS (e.g. behind a
      reverse proxy that terminates TLS)
 
@@ -115,11 +129,15 @@ npm run lint
 ## Design notes
 
 - Money is stored as integer paise everywhere (`amountPaise`), never floats.
-- `transactionDate` is the shop's local (Asia/Kolkata) calendar date as `YYYY-MM-DD`, independent
-  of the server's own timezone.
-- Every transaction carries a `source` field (currently always `"manual"`) so a future automated
-  BharatPe import can be added without a schema migration.
-- BharatPe bank settlements are never recorded separately as income — only the daily BharatPe
-  collection total — to avoid double-counting.
-- Dashboard summaries report **cash flow** (opening balance + income − expenses), not formal
-  accounting profit.
+- `transactionDate` is local (Asia/Kolkata) calendar date as `YYYY-MM-DD`, independent of the
+  server's own timezone.
+- Every transaction has a `module` (`shop` or `personal`) so the two ledgers never mix, and a
+  `source` field (currently always `"manual"`) so future automated imports don't need a
+  migration.
+- Shop turnover is never counted as personal income directly — only money explicitly recorded
+  as a `shop_draw` personal-income transaction (i.e. money you actually moved out of the shop)
+  counts toward personal income and net worth.
+- Net worth is computed from manually-maintained account balances (`accounts` collection), not
+  derived from the transaction ledger — you update a balance when it changes (bank statement,
+  investment valuation, etc.).
+- Dashboard summaries report **cash flow**, not formal accounting profit.

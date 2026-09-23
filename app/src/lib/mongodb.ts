@@ -27,10 +27,13 @@ export async function ensureIndexes(): Promise<void> {
 
   await db.collection("users").createIndex({ username: 1 }, { unique: true });
 
-  await db.collection("transactions").createIndex({ transactionDate: 1 });
-  await db.collection("transactions").createIndex({ type: 1, transactionDate: 1 });
+  await db.collection("transactions").createIndex({ module: 1, transactionDate: 1 });
+  await db.collection("transactions").createIndex({ module: 1, type: 1, transactionDate: 1 });
   await db.collection("transactions").createIndex({ paymentMethod: 1 });
   await db.collection("transactions").createIndex({ category: 1 });
+
+  await db.collection("accounts").createIndex({ type: 1 });
+  await db.collection("salary_records").createIndex({ month: 1 }, { unique: true });
 
   indexesEnsured = true;
 }

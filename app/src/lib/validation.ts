@@ -1,14 +1,34 @@
 import { z } from "zod";
 import { isValidDateString } from "@/lib/dates";
 
+export const MODULES = ["shop", "personal"] as const;
 export const PAYMENT_METHODS = ["bharatpe", "cash", "bank_transfer", "other"] as const;
-export const EXPENSE_CATEGORIES = ["stock", "rent", "electricity", "salary", "transport", "other"] as const;
+export const SHOP_EXPENSE_CATEGORIES = ["stock", "rent", "electricity", "salary", "transport", "other"] as const;
+export const PERSONAL_EXPENSE_CATEGORIES = [
+  "groceries",
+  "rent",
+  "utilities",
+  "transport",
+  "health",
+  "entertainment",
+  "shopping",
+  "other",
+] as const;
+// Personal income with this category represents money drawn from the shop into personal
+// funds — the only shop-related figure that should count as personal income, so shop
+// turnover is never double-counted as personal earnings.
+export const SHOP_DRAW_CATEGORY = "shop_draw";
 export const INCOME_CATEGORY_DEFAULT = "shop_sales";
 
 const dateString = z.string().refine(isValidDateString, { message: "must be a valid YYYY-MM-DD date" });
 
+function expenseCategoriesFor(moduleName: string): readonly string[] {
+  return moduleName === "shop" ? SHOP_EXPENSE_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES;
+}
+
 export const createTransactionSchema = z
   .object({
+    module: z.enum(MODULES),
     type: z.enum(["income", "expense"]),
     amountPaise: z.number().int().positive(),
     category: z.string().min(1).max(50),
@@ -17,10 +37,10 @@ export const createTransactionSchema = z
     description: z.string().max(500).default(""),
   })
   .superRefine((data, ctx) => {
-    if (data.type === "expense" && !EXPENSE_CATEGORIES.includes(data.category as (typeof EXPENSE_CATEGORIES)[number])) {
+    if (data.type === "expense" && !expenseCategoriesFor(data.module).includes(data.category)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `category must be one of: ${EXPENSE_CATEGORIES.join(", ")}`,
+        message: `category must be one of: ${expenseCategoriesFor(data.module).join(", ")}`,
         path: ["category"],
       });
     }
@@ -37,6 +57,7 @@ export const updateTransactionSchema = z
   .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
 
 export const listTransactionsQuerySchema = z.object({
+  module: z.enum(MODULES).default("shop"),
   from: dateString.optional(),
   to: dateString.optional(),
   type: z.enum(["income", "expense"]).optional(),
@@ -47,6 +68,7 @@ export const listTransactionsQuerySchema = z.object({
 });
 
 export const periodQuerySchema = z.object({
+  module: z.enum(MODULES).default("shop"),
   period: z.enum(["today", "week", "month", "lastMonth", "year", "custom", "all"]),
   from: dateString.optional(),
   to: dateString.optional(),
@@ -58,9 +80,47 @@ export const loginSchema = z.object({
 });
 
 export const trendsQuerySchema = z.object({
+  module: z.enum(MODULES).default("shop"),
   months: z.coerce.number().int().min(1).max(36).default(12),
 });
 
 export const openingBalanceSchema = z.object({
   amountPaise: z.number().int().min(0),
 });
+
+export const ACCOUNT_TYPES = ["bank", "cash", "investment", "pf", "other_asset", "loan"] as const;
+export const LIABILITY_ACCOUNT_TYPES = ["loan"] as const;
+
+export const createAccountSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum(ACCOUNT_TYPES),
+  balancePaise: z.number().int().min(0),
+});
+
+export const updateAccountSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    balancePaise: z.number().int().min(0).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
+
+export const salaryStatuses = ["expected", "received"] as const;
+
+export const createSalaryRecordSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "must be in YYYY-MM format"),
+  grossPaise: z.number().int().positive(),
+  deductionsPaise: z.number().int().min(0).default(0),
+  status: z.enum(salaryStatuses).default("expected"),
+  receivedDate: dateString.optional(),
+  note: z.string().max(300).default(""),
+});
+
+export const updateSalaryRecordSchema = z
+  .object({
+    grossPaise: z.number().int().positive().optional(),
+    deductionsPaise: z.number().int().min(0).optional(),
+    status: z.enum(salaryStatuses).optional(),
+    receivedDate: dateString.optional(),
+    note: z.string().max(300).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });

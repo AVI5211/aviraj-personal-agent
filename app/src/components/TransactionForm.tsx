@@ -1,9 +1,23 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { PaymentMethod, TransactionApi, TransactionType } from "@/lib/types";
+import type { Module, PaymentMethod, TransactionApi, TransactionType } from "@/lib/types";
 
-const EXPENSE_CATEGORIES = ["stock", "rent", "electricity", "salary", "transport", "other"];
+const SHOP_EXPENSE_CATEGORIES = ["stock", "rent", "electricity", "salary", "transport", "other"];
+const PERSONAL_EXPENSE_CATEGORIES = [
+  "groceries",
+  "rent",
+  "utilities",
+  "transport",
+  "health",
+  "entertainment",
+  "shopping",
+  "other",
+];
+const PERSONAL_INCOME_CATEGORIES = [
+  { value: "shop_draw", label: "Money drawn from shop" },
+  { value: "other", label: "Other income" },
+];
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "bharatpe", label: "BharatPe" },
   { value: "cash", label: "Cash" },
@@ -15,22 +29,30 @@ function todayLocalDateValue(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 }
 
+function defaultCategoryFor(module: Module, type: TransactionType): string {
+  if (type === "income") return module === "personal" ? "other" : "shop_sales";
+  return module === "shop" ? "stock" : "groceries";
+}
+
 interface TransactionFormProps {
+  module: Module;
   type: TransactionType;
   existing?: TransactionApi;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function TransactionForm({ type, existing, onClose, onSaved }: TransactionFormProps) {
+export function TransactionForm({ module, type, existing, onClose, onSaved }: TransactionFormProps) {
   const isEdit = Boolean(existing);
   const [amount, setAmount] = useState(existing ? (existing.amountPaise / 100).toString() : "");
   const [date, setDate] = useState(existing?.transactionDate ?? todayLocalDateValue());
-  const [category, setCategory] = useState(existing?.category ?? (type === "expense" ? "stock" : "shop_sales"));
+  const [category, setCategory] = useState(existing?.category ?? defaultCategoryFor(module, type));
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "cash");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const expenseCategories = module === "shop" ? SHOP_EXPENSE_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -54,7 +76,7 @@ export function TransactionForm({ type, existing, onClose, onSaved }: Transactio
     const response = await fetch(isEdit ? `/api/transactions/${existing!.id}` : "/api/transactions", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(isEdit ? payload : { ...payload, type }),
+      body: JSON.stringify(isEdit ? payload : { ...payload, module, type }),
     });
 
     setSubmitting(false);
@@ -69,10 +91,7 @@ export function TransactionForm({ type, existing, onClose, onSaved }: Transactio
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg"
-      >
+      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
         <h2 className="mb-4 text-lg font-semibold">
           {isEdit ? "Edit" : "Add"} {type === "income" ? "Income" : "Expense"}
         </h2>
@@ -105,9 +124,26 @@ export function TransactionForm({ type, existing, onClose, onSaved }: Transactio
               onChange={(e) => setCategory(e.target.value)}
               className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
             >
-              {EXPENSE_CATEGORIES.map((c) => (
+              {expenseCategories.map((c) => (
                 <option key={c} value={c}>
                   {c.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {type === "income" && module === "personal" && (
+          <>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            >
+              {PERSONAL_INCOME_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>

@@ -16,9 +16,10 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { from, to, type, category, paymentMethod, page, pageSize } = parsed.data;
+  const { module, from, to, type, category, paymentMethod, page, pageSize } = parsed.data;
 
   const filter: Record<string, unknown> = {
+    ...(module ? { module } : {}),
     ...buildDateRangeFilter(from, to),
     ...(type ? { type } : {}),
     ...(category ? { category } : {}),
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
   const data = parsed.data;
   const now = new Date();
   const doc = {
+    module: data.module,
     type: data.type,
     amountPaise: data.amountPaise,
     category: data.category,
