@@ -1,4 +1,4 @@
-# Aviraj Personal Admin
+# Aviraj Money Desk
 
 A private, self-hosted financial command center: consolidated net worth and cash flow across
 salary, shop, and personal finances, backed by MongoDB Atlas.

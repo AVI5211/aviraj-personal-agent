@@ -26,7 +26,9 @@ export function NavBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-        <span className="text-sm font-semibold">Aviraj Personal Admin</span>
+        <Link href="/" className="text-sm font-semibold text-slate-900 hover:text-slate-600">
+          Aviraj Money Desk
+        </Link>
         <button onClick={handleLogout} className="text-xs text-slate-500 hover:text-slate-800">
           Sign out
         </button>

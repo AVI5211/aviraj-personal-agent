@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aviraj Personal Admin",
-  description: "Private consolidated financial command center",
+  title: "Aviraj Money Desk",
+  description: "Your private personal finance dashboard",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
