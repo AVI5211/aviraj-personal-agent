@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import type {
   ClientApi,
   ClientCurrency,
+  EpicApi,
   InvoiceApi,
   InvoiceStatus,
   LeadExpenseApi,
@@ -24,13 +25,22 @@ export interface ClientDoc {
   updatedAt: Date;
 }
 
+export interface EpicDoc {
+  _id: ObjectId;
+  clientId: ObjectId;
+  name: string;
+  createdAt: Date;
+}
+
 export interface WorkLogDoc {
   _id: ObjectId;
   clientId: ObjectId;
+  epicId: ObjectId | null;
   date: string;
   billableHours: number;
   nonBillableHours: number;
   description: string;
+  notes: string;
   invoiced: boolean;
   invoiceId: ObjectId | null;
   createdAt: Date;
@@ -77,14 +87,25 @@ export function serializeClient(doc: ClientDoc): ClientApi {
   };
 }
 
+export function serializeEpic(doc: EpicDoc): EpicApi {
+  return {
+    id: doc._id.toString(),
+    clientId: doc.clientId.toString(),
+    name: doc.name,
+    createdAt: doc.createdAt.toISOString(),
+  };
+}
+
 export function serializeWorkLog(doc: WorkLogDoc): WorkLogApi {
   return {
     id: doc._id.toString(),
     clientId: doc.clientId.toString(),
+    epicId: doc.epicId ? doc.epicId.toString() : null,
     date: doc.date,
     billableHours: doc.billableHours,
     nonBillableHours: doc.nonBillableHours,
     description: doc.description,
+    notes: doc.notes,
     invoiced: doc.invoiced,
     invoiceId: doc.invoiceId ? doc.invoiceId.toString() : null,
     createdAt: doc.createdAt.toISOString(),

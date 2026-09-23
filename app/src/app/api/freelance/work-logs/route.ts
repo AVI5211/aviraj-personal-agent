@@ -54,13 +54,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
+  let epicId = null;
+  if (data.epicId) {
+    epicId = parseObjectId(data.epicId);
+    if (!epicId) {
+      return NextResponse.json({ error: "Invalid epicId" }, { status: 400 });
+    }
+    const epic = await db.collection("epics").findOne({ _id: epicId, clientId });
+    if (!epic) {
+      return NextResponse.json({ error: "Epic not found for this client" }, { status: 404 });
+    }
+  }
+
   const now = new Date();
   const doc = {
     clientId,
+    epicId,
     date: data.date,
     billableHours: data.billableHours,
     nonBillableHours: data.nonBillableHours,
     description: data.description,
+    notes: data.notes,
     invoiced: false,
     invoiceId: null,
     createdAt: now,

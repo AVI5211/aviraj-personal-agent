@@ -232,18 +232,22 @@ export const updateClientSchema = z
 
 export const createWorkLogSchema = z.object({
   clientId: z.string().min(1),
+  epicId: z.string().min(1).nullable().default(null),
   date: dateString,
   billableHours: z.number().min(0),
   nonBillableHours: z.number().min(0).default(0),
   description: z.string().max(500).default(""),
+  notes: z.string().max(1000).default(""),
 });
 
 export const updateWorkLogSchema = z
   .object({
+    epicId: z.string().min(1).nullable().optional(),
     date: dateString.optional(),
     billableHours: z.number().min(0).optional(),
     nonBillableHours: z.number().min(0).optional(),
     description: z.string().max(500).optional(),
+    notes: z.string().max(1000).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
 
@@ -280,6 +284,15 @@ export const createLeadExpenseSchema = z.object({
   amountPaise: z.number().int().positive(),
   category: z.enum(LEAD_EXPENSE_CATEGORIES),
   description: z.string().max(500).default(""),
+});
+
+export const createEpicSchema = z.object({
+  clientId: z.string().min(1),
+  name: z.string().min(1).max(150),
+});
+
+export const setExchangeRateSchema = z.object({
+  rate: z.number().positive().max(1000),
 });
 
 export const freelanceSummaryQuerySchema = z.object({

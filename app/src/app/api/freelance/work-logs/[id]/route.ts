@@ -30,9 +30,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Cannot edit a work log that has already been invoiced" }, { status: 409 });
   }
 
+  const { epicId: rawEpicId, ...rest } = parsed.data;
+  const update: Record<string, unknown> = { ...rest, updatedAt: new Date() };
+  if (rawEpicId !== undefined) {
+    if (rawEpicId === null) {
+      update.epicId = null;
+    } else {
+      const epicObjectId = parseObjectId(rawEpicId);
+      if (!epicObjectId) {
+        return NextResponse.json({ error: "Invalid epicId" }, { status: 400 });
+      }
+      update.epicId = epicObjectId;
+    }
+  }
+
   const result = await db.collection<WorkLogDoc>("work_logs").findOneAndUpdate(
     { _id: objectId },
-    { $set: { ...parsed.data, updatedAt: new Date() } },
+    { $set: update },
     { returnDocument: "after" }
   );
 

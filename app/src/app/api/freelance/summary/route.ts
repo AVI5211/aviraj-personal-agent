@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { freelanceSummaryQuerySchema } from "@/lib/validation";
 import { resolvePeriod } from "@/lib/dates";
-import { PLACEHOLDER_USD_TO_INR_RATE, type ClientDoc, type InvoiceDoc, type LeadExpenseDoc, type WorkLogDoc } from "@/lib/freelance";
+import { type ClientDoc, type InvoiceDoc, type LeadExpenseDoc, type WorkLogDoc } from "@/lib/freelance";
+import { getFreelanceUsdInrRate } from "@/lib/settings";
 
 function buildDateFilter(field: string, from: string | null, to: string | null): Record<string, unknown> {
   if (!from && !to) return {};
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   const db = await getDb();
+  const usdInrRate = await getFreelanceUsdInrRate();
 
   const [paidInvoices, issuedInvoices, unbilledWorkLogs, leadExpensesInRange] = await Promise.all([
     db
@@ -55,8 +57,8 @@ export async function GET(request: NextRequest) {
 
   // Best-effort snapshot of unbilled work in INR: group by client currency so
   // INR clients sum directly (their hourlyRateMinor is already in paise) and
-  // USD clients get converted using a rough placeholder exchange rate, since
-  // no real rate exists until an invoice is actually issued.
+  // USD clients get converted using the operator's saved USD→INR rate, since
+  // no real invoice rate exists until one is actually issued.
   let unbilledAmountEstimatePaise = 0;
   if (unbilledWorkLogs.length > 0) {
     const clientIds = [...new Set(unbilledWorkLogs.map((log) => log.clientId.toString()))];
@@ -73,8 +75,7 @@ export async function GET(request: NextRequest) {
         .filter((log) => log.clientId.toString() === clientId)
         .reduce((sum, log) => sum + log.billableHours, 0);
       const amountMinor = hours * client.hourlyRateMinor;
-      unbilledAmountEstimatePaise +=
-        client.currency === "INR" ? amountMinor : Math.round(amountMinor * PLACEHOLDER_USD_TO_INR_RATE);
+      unbilledAmountEstimatePaise += client.currency === "INR" ? amountMinor : Math.round(amountMinor * usdInrRate);
     }
   }
 
@@ -88,5 +89,6 @@ export async function GET(request: NextRequest) {
     unbilledAmountEstimatePaise,
     leadExpensesPaise,
     byPlatform,
+    usdInrRate,
   });
 }

@@ -6,6 +6,7 @@ import { formatPaiseAsInr } from "@/lib/money";
 import type {
   ClientApi,
   ClientCurrency,
+  EpicApi,
   FreelanceSummaryResponse,
   InvoiceApi,
   LeadExpenseApi,
@@ -15,11 +16,7 @@ import type {
   WorkLogApi,
 } from "@/lib/types";
 
-const PAYMENT_PLATFORMS: { value: PaymentPlatform; label: string }[] = [
-  { value: "upwork", label: "Upwork" },
-  { value: "deel", label: "Deel" },
-  { value: "other", label: "Other" },
-];
+const NEW_EPIC_VALUE = "__new__";
 
 function formatMinor(amountMinor: number, currency: ClientCurrency): string {
   if (currency === "INR") return formatPaiseAsInr(amountMinor);
@@ -32,6 +29,40 @@ const LEAD_EXPENSE_CATEGORIES: { value: LeadExpenseCategory; label: string }[] =
   { value: "other", label: "Other" },
 ];
 
+const PAYMENT_PLATFORMS: { value: PaymentPlatform; label: string }[] = [
+  { value: "upwork", label: "Upwork" },
+  { value: "deel", label: "Deel" },
+  { value: "other", label: "Other" },
+];
+
+interface LogFormState {
+  date: string;
+  billable: string;
+  nonBillable: string;
+  description: string;
+  notes: string;
+  epicId: string; // "" = none, NEW_EPIC_VALUE = show new-epic input, else an epic id
+  newEpicName: string;
+  paymentReceived: boolean;
+  paymentPlatform: PaymentPlatform;
+  taxPercent: string;
+}
+
+function emptyLogForm(defaultEpicId: string): LogFormState {
+  return {
+    date: "",
+    billable: "",
+    nonBillable: "0",
+    description: "",
+    notes: "",
+    epicId: defaultEpicId,
+    newEpicName: "",
+    paymentReceived: false,
+    paymentPlatform: "upwork",
+    taxPercent: "0",
+  };
+}
+
 export function FreelanceManager() {
   const [period, setPeriod] = useState<Period>("month");
   const [customFrom, setCustomFrom] = useState("");
@@ -39,9 +70,13 @@ export function FreelanceManager() {
 
   const [summary, setSummary] = useState<FreelanceSummaryResponse | null>(null);
   const [clients, setClients] = useState<ClientApi[]>([]);
+  const [epics, setEpics] = useState<EpicApi[]>([]);
   const [workLogs, setWorkLogs] = useState<WorkLogApi[]>([]);
   const [invoices, setInvoices] = useState<InvoiceApi[]>([]);
   const [leadExpenses, setLeadExpenses] = useState<LeadExpenseApi[]>([]);
+
+  const [usdInrRate, setUsdInrRate] = useState("83");
+  const [rateSaving, setRateSaving] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -52,14 +87,13 @@ export function FreelanceManager() {
   const [clientNote, setClientNote] = useState("");
 
   // Work log inline form state, keyed by clientId
-  const [logForms, setLogForms] = useState<Record<string, { date: string; billable: string; nonBillable: string; description: string }>>({});
+  const [logForms, setLogForms] = useState<Record<string, LogFormState>>({});
 
-  // Invoice selection
+  // Invoice selection (batch-invoicing multiple unbilled entries at once)
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoicePlatform, setInvoicePlatform] = useState<PaymentPlatform>("upwork");
   const [invoiceFees, setInvoiceFees] = useState("0");
-  const [invoiceRate, setInvoiceRate] = useState("1");
 
   // Lead expense form
   const [leadDate, setLeadDate] = useState("");
@@ -70,6 +104,7 @@ export function FreelanceManager() {
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
 
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
+  const epicById = useMemo(() => new Map(epics.map((e) => [e.id, e])), [epics]);
 
   const fetchSummary = useCallback(async () => {
     if (!canQuery) return;
@@ -87,6 +122,14 @@ export function FreelanceManager() {
     if (response.ok) {
       const data = await response.json();
       setClients(data.clients);
+    }
+  }, []);
+
+  const fetchEpics = useCallback(async () => {
+    const response = await fetch("/api/freelance/epics");
+    if (response.ok) {
+      const data = await response.json();
+      setEpics(data.epics);
     }
   }, []);
 
@@ -114,21 +157,49 @@ export function FreelanceManager() {
     }
   }, []);
 
+  const fetchExchangeRate = useCallback(async () => {
+    const response = await fetch("/api/freelance/exchange-rate");
+    if (response.ok) {
+      const data = await response.json();
+      setUsdInrRate(String(data.rate));
+    }
+  }, []);
+
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
 
   useEffect(() => {
     fetchClients();
+    fetchEpics();
     fetchWorkLogs();
     fetchInvoices();
     fetchLeadExpenses();
-  }, [fetchClients, fetchWorkLogs, fetchInvoices, fetchLeadExpenses]);
+    fetchExchangeRate();
+  }, [fetchClients, fetchEpics, fetchWorkLogs, fetchInvoices, fetchLeadExpenses, fetchExchangeRate]);
 
   function refreshAfterMutation() {
     fetchSummary();
     fetchWorkLogs();
     fetchInvoices();
+    fetchEpics();
+  }
+
+  async function handleSaveRate(event: FormEvent) {
+    event.preventDefault();
+    const rate = Number(usdInrRate);
+    if (!Number.isFinite(rate) || rate <= 0) {
+      setError("Enter a valid USD → INR rate");
+      return;
+    }
+    setRateSaving(true);
+    await fetch("/api/freelance/exchange-rate", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rate }),
+    });
+    setRateSaving(false);
+    fetchSummary();
   }
 
   async function handleAddClient(event: FormEvent) {
@@ -170,42 +241,127 @@ export function FreelanceManager() {
     fetchClients();
   }
 
-  function getLogForm(clientId: string) {
-    return logForms[clientId] ?? { date: "", billable: "", nonBillable: "0", description: "" };
+  // Default a client's log form to the most recently used epic for that client.
+  function defaultEpicFor(clientId: string): string {
+    const clientEpics = epics.filter((e) => e.clientId === clientId);
+    return clientEpics[0]?.id ?? "";
   }
 
-  function setLogForm(clientId: string, patch: Partial<{ date: string; billable: string; nonBillable: string; description: string }>) {
+  function getLogForm(clientId: string): LogFormState {
+    return logForms[clientId] ?? emptyLogForm(defaultEpicFor(clientId));
+  }
+
+  function setLogForm(clientId: string, patch: Partial<LogFormState>) {
     setLogForms((prev) => ({ ...prev, [clientId]: { ...getLogForm(clientId), ...patch } }));
   }
 
-  async function handleAddWorkLog(clientId: string, event: FormEvent) {
+  function estimatedPaymentPaise(client: ClientApi, billableHours: number): number {
+    const amountMinor = billableHours * client.hourlyRateMinor;
+    if (client.currency === "INR") return amountMinor;
+    const rate = Number(usdInrRate) || 0;
+    return Math.round(amountMinor * rate);
+  }
+
+  function clientPendingStats(clientId: string) {
+    const logs = workLogs.filter((log) => log.clientId === clientId);
+    const hours = logs.reduce((sum, log) => sum + log.billableHours, 0);
+    const client = clientById.get(clientId);
+    const paise = client ? estimatedPaymentPaise(client, hours) : 0;
+    return { hours, paise };
+  }
+
+  async function handleAddWorkLog(client: ClientApi, event: FormEvent) {
     event.preventDefault();
     setError(null);
-    const form = getLogForm(clientId);
+    const form = getLogForm(client.id);
     const billable = Number(form.billable);
     const nonBillable = Number(form.nonBillable || "0");
+    const taxPercent = Number(form.taxPercent || "0");
+
     if (!form.date || !Number.isFinite(billable) || billable < 0) {
       setError("Enter a valid date and billable hours");
       return;
     }
-    const response = await fetch("/api/freelance/work-logs", {
+    if (form.paymentReceived && (!Number.isFinite(taxPercent) || taxPercent < 0 || taxPercent > 100)) {
+      setError("Enter a valid tax percentage (0-100)");
+      return;
+    }
+
+    // Resolve/create the epic first, if a new one was requested.
+    let epicId: string | null = form.epicId && form.epicId !== NEW_EPIC_VALUE ? form.epicId : null;
+    if (form.epicId === NEW_EPIC_VALUE) {
+      if (!form.newEpicName.trim()) {
+        setError("Enter a name for the new epic");
+        return;
+      }
+      const epicResponse = await fetch("/api/freelance/epics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: client.id, name: form.newEpicName }),
+      });
+      if (!epicResponse.ok) {
+        setError("Could not create epic");
+        return;
+      }
+      const epic = await epicResponse.json();
+      epicId = epic.id;
+    }
+
+    const logResponse = await fetch("/api/freelance/work-logs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        clientId,
+        clientId: client.id,
+        epicId,
         date: form.date,
         billableHours: billable,
         nonBillableHours: nonBillable,
         description: form.description,
+        notes: form.notes,
       }),
     });
-    if (!response.ok) {
+    if (!logResponse.ok) {
       setError("Could not log work");
       return;
     }
-    setLogForms((prev) => ({ ...prev, [clientId]: { date: "", billable: "", nonBillable: "0", description: "" } }));
-    fetchWorkLogs();
-    fetchSummary();
+    const log = await logResponse.json();
+
+    if (form.paymentReceived) {
+      const exchangeRateToInr = client.currency === "INR" ? 1 : Number(usdInrRate) || 1;
+      const invoiceResponse = await fetch("/api/freelance/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: client.id,
+          workLogIds: [log.id],
+          paymentPlatform: form.paymentPlatform,
+          feesMinor: 0,
+          exchangeRateToInr,
+        }),
+      });
+      if (!invoiceResponse.ok) {
+        setError("Work was logged, but the payment could not be recorded");
+        setLogForms((prev) => ({ ...prev, [client.id]: emptyLogForm(defaultEpicFor(client.id)) }));
+        refreshAfterMutation();
+        return;
+      }
+      const invoice = await invoiceResponse.json();
+      const taxPaidPaise = Math.round(invoice.netInrPaise * (taxPercent / 100));
+
+      await fetch(`/api/freelance/invoices/${invoice.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "paid",
+          netInrPaise: invoice.netInrPaise,
+          taxPaidPaise,
+          paidDate: form.date,
+        }),
+      });
+    }
+
+    setLogForms((prev) => ({ ...prev, [client.id]: emptyLogForm(defaultEpicFor(client.id)) }));
+    refreshAfterMutation();
   }
 
   function toggleLogSelection(id: string) {
@@ -225,15 +381,15 @@ export function FreelanceManager() {
     event.preventDefault();
     setError(null);
     const fees = Number(invoiceFees);
-    const rate = Number(invoiceRate);
-    if (!Number.isFinite(fees) || fees < 0 || !Number.isFinite(rate) || rate <= 0) {
-      setError("Enter valid fees and exchange rate");
+    if (!Number.isFinite(fees) || fees < 0) {
+      setError("Enter a valid fee amount");
       return;
     }
     const clientId = selectedLogs[0]?.clientId;
     if (!clientId) return;
     const client = clientById.get(clientId);
     const feesMinor = Math.round(fees * 100);
+    const exchangeRateToInr = client?.currency === "INR" ? 1 : Number(usdInrRate) || 1;
 
     const response = await fetch("/api/freelance/invoices", {
       method: "POST",
@@ -243,7 +399,7 @@ export function FreelanceManager() {
         workLogIds: Array.from(selectedLogIds),
         paymentPlatform: invoicePlatform,
         feesMinor,
-        exchangeRateToInr: client?.currency === "INR" ? 1 : rate,
+        exchangeRateToInr,
       }),
     });
     if (!response.ok) {
@@ -254,7 +410,6 @@ export function FreelanceManager() {
     setShowInvoiceForm(false);
     setInvoicePlatform("upwork");
     setInvoiceFees("0");
-    setInvoiceRate("1");
     refreshAfterMutation();
   }
 
@@ -338,11 +493,9 @@ export function FreelanceManager() {
     <div>
       <h1 className="mb-4 text-lg font-semibold text-slate-800">Freelance</h1>
 
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-      )}
+      {error && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <PeriodFilter
           period={period}
           customFrom={customFrom}
@@ -351,6 +504,26 @@ export function FreelanceManager() {
           onCustomFromChange={setCustomFrom}
           onCustomToChange={setCustomTo}
         />
+        <form onSubmit={handleSaveRate} className="flex items-end gap-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">USD → INR rate</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={usdInrRate}
+              onChange={(e) => setUsdInrRate(e.target.value)}
+              className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={rateSaving}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          >
+            Save Rate
+          </button>
+        </form>
       </div>
 
       {/* Summary cards */}
@@ -373,16 +546,12 @@ export function FreelanceManager() {
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Pending</p>
-          <p className="mt-1 text-lg font-semibold text-amber-600">
-            {formatPaiseAsInr(summary?.pendingPaise ?? 0)}
-          </p>
+          <p className="mt-1 text-lg font-semibold text-amber-600">{formatPaiseAsInr(summary?.pendingPaise ?? 0)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Unbilled Hours</p>
           <p className="mt-1 text-lg font-semibold text-slate-800">{summary?.unbilledHours ?? 0}</p>
-          <p className="text-xs text-slate-400">
-            ~{formatPaiseAsInr(summary?.unbilledAmountEstimatePaise ?? 0)}
-          </p>
+          <p className="text-xs text-slate-400">~{formatPaiseAsInr(summary?.unbilledAmountEstimatePaise ?? 0)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Lead Expenses</p>
@@ -410,6 +579,12 @@ export function FreelanceManager() {
           {clients.length === 0 && <p className="py-4 text-sm text-slate-500">No clients yet — add one below.</p>}
           {clients.map((client) => {
             const logForm = getLogForm(client.id);
+            const clientEpics = epics.filter((e) => e.clientId === client.id);
+            const pending = clientPendingStats(client.id);
+            const billable = Number(logForm.billable);
+            const liveEstimate =
+              Number.isFinite(billable) && billable > 0 ? estimatedPaymentPaise(client, billable) : 0;
+
             return (
               <div key={client.id} className="py-3">
                 <div className="flex items-center justify-between">
@@ -419,6 +594,9 @@ export function FreelanceManager() {
                       {client.currency} · {formatMinor(client.hourlyRateMinor, client.currency)}/hr
                     </p>
                     {client.contractNote && <p className="text-xs text-slate-400">{client.contractNote}</p>}
+                    <p className="text-xs font-medium text-amber-600">
+                      Pending: {pending.hours}h · ~{formatPaiseAsInr(pending.paise)}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -430,9 +608,36 @@ export function FreelanceManager() {
                 </div>
 
                 <form
-                  onSubmit={(e) => handleAddWorkLog(client.id, e)}
+                  onSubmit={(e) => handleAddWorkLog(client, e)}
                   className="mt-2 flex flex-wrap items-end gap-2 rounded-md bg-slate-50 p-2"
                 >
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Epic</label>
+                    <select
+                      value={logForm.epicId}
+                      onChange={(e) => setLogForm(client.id, { epicId: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    >
+                      <option value="">No epic</option>
+                      {clientEpics.map((epic) => (
+                        <option key={epic.id} value={epic.id}>
+                          {epic.name}
+                        </option>
+                      ))}
+                      <option value={NEW_EPIC_VALUE}>+ New epic...</option>
+                    </select>
+                  </div>
+                  {logForm.epicId === NEW_EPIC_VALUE && (
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-700">New epic name</label>
+                      <input
+                        type="text"
+                        value={logForm.newEpicName}
+                        onChange={(e) => setLogForm(client.id, { newEpicName: e.target.value })}
+                        className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-700">Date</label>
                     <input
@@ -444,7 +649,7 @@ export function FreelanceManager() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-700">Billable hrs</label>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Hours worked</label>
                     <input
                       type="number"
                       min="0"
@@ -452,7 +657,7 @@ export function FreelanceManager() {
                       required
                       value={logForm.billable}
                       onChange={(e) => setLogForm(client.id, { billable: e.target.value })}
-                      className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </div>
                   <div>
@@ -467,7 +672,7 @@ export function FreelanceManager() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-slate-700">Description</label>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Completed tasks</label>
                     <input
                       type="text"
                       value={logForm.description}
@@ -475,12 +680,68 @@ export function FreelanceManager() {
                       className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-                  >
-                    Log Work
-                  </button>
+                  <div className="flex-1">
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Notes</label>
+                    <input
+                      type="text"
+                      value={logForm.notes}
+                      onChange={(e) => setLogForm(client.id, { notes: e.target.value })}
+                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 pb-1">
+                    <input
+                      id={`paid-${client.id}`}
+                      type="checkbox"
+                      checked={logForm.paymentReceived}
+                      onChange={(e) => setLogForm(client.id, { paymentReceived: e.target.checked })}
+                    />
+                    <label htmlFor={`paid-${client.id}`} className="text-xs text-slate-600">
+                      Payment received
+                    </label>
+                  </div>
+                  {logForm.paymentReceived && (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-700">Platform</label>
+                        <select
+                          value={logForm.paymentPlatform}
+                          onChange={(e) =>
+                            setLogForm(client.id, { paymentPlatform: e.target.value as PaymentPlatform })
+                          }
+                          className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                        >
+                          {PAYMENT_PLATFORMS.map((p) => (
+                            <option key={p.value} value={p.value}>
+                              {p.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-700">Tax %</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={logForm.taxPercent}
+                          onChange={(e) => setLogForm(client.id, { taxPercent: e.target.value })}
+                          className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex flex-1 items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-500">
+                      Est. payment: <span className="text-slate-800">{formatPaiseAsInr(liveEstimate)}</span>
+                    </span>
+                    <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">
+                      Log Work
+                    </button>
+                  </div>
                 </form>
               </div>
             );
@@ -530,10 +791,7 @@ export function FreelanceManager() {
               className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
-          <button
-            type="submit"
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-          >
+          <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">
             Add Client
           </button>
         </form>
@@ -541,24 +799,23 @@ export function FreelanceManager() {
 
       {/* Unbilled work */}
       <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-600">Unbilled Work</h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-600">Unbilled Work (batch invoicing)</h2>
 
         <div className="mb-3 divide-y divide-slate-100">
           {workLogs.length === 0 && <p className="py-4 text-sm text-slate-500">No unbilled work.</p>}
           {workLogs.map((log) => {
             const client = clientById.get(log.clientId);
+            const epic = log.epicId ? epicById.get(log.epicId) : null;
             return (
               <label key={log.id} className="flex items-center gap-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selectedLogIds.has(log.id)}
-                  onChange={() => toggleLogSelection(log.id)}
-                />
+                <input type="checkbox" checked={selectedLogIds.has(log.id)} onChange={() => toggleLogSelection(log.id)} />
                 <span className="flex-1">
                   <span className="font-medium text-slate-800">{client?.name ?? "Unknown client"}</span>{" "}
+                  {epic && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{epic.name}</span>}{" "}
                   <span className="text-slate-500">
                     {log.date} · {log.billableHours}h billable{log.description ? ` · ${log.description}` : ""}
                   </span>
+                  {log.notes && <span className="block text-xs text-slate-400">{log.notes}</span>}
                 </span>
               </label>
             );
@@ -604,17 +861,7 @@ export function FreelanceManager() {
               />
             </div>
             {clientById.get(selectedLogs[0].clientId)?.currency === "USD" && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">Exchange rate to INR</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={invoiceRate}
-                  onChange={(e) => setInvoiceRate(e.target.value)}
-                  className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
-                />
-              </div>
+              <p className="text-xs text-slate-500">Using saved rate: {usdInrRate} INR/USD</p>
             )}
             <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">
               Confirm Invoice

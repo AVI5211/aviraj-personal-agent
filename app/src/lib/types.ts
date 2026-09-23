@@ -174,13 +174,22 @@ export interface ClientApi {
   updatedAt: string;
 }
 
+export interface EpicApi {
+  id: string;
+  clientId: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface WorkLogApi {
   id: string;
   clientId: string;
+  epicId: string | null;
   date: string;
   billableHours: number;
   nonBillableHours: number;
   description: string;
+  notes: string;
   invoiced: boolean;
   invoiceId: string | null;
   createdAt: string;
@@ -228,6 +237,7 @@ export interface FreelanceSummaryResponse {
   unbilledAmountEstimatePaise: number;
   leadExpensesPaise: number;
   byPlatform: Record<PaymentPlatform, number>;
+  usdInrRate: number;
 }
 export interface AdminOverviewResponse {
   range: { from: string | null; to: string | null };

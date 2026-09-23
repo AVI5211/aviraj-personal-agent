@@ -12,6 +12,7 @@ import {
 } from "@/lib/freelance";
 import { parseObjectId } from "@/lib/transactions";
 import { todayInShopTz } from "@/lib/dates";
+import { setFreelanceUsdInrRate } from "@/lib/settings";
 
 export async function GET(request: NextRequest) {
   const query = Object.fromEntries(request.nextUrl.searchParams.entries());
@@ -113,6 +114,10 @@ export async function POST(request: NextRequest) {
   // double-counted (they'd just be manually reconciled), which fails safer
   // than marking logs invoiced before an invoice exists.
   const result = await db.collection("invoices").insertOne(invoiceDoc);
+
+  if (client.currency === "USD") {
+    await setFreelanceUsdInrRate(data.exchangeRateToInr);
+  }
 
   await db.collection("work_logs").updateMany(
     { _id: { $in: workLogObjectIds } },
