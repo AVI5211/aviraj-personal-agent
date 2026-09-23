@@ -62,7 +62,7 @@ export function AdminOverview() {
 
           <Section title="Income sources">
             <Row label="Perforce salary" value={overview.incomeSources.salary} />
-            <Row label="Freelancing" value={overview.incomeSources.freelance} note="Coming in a future phase" />
+            <Row label="Freelancing" value={overview.incomeSources.freelance} />
             <Row label="Shop (drawn)" value={overview.incomeSources.shop} />
           </Section>
 
@@ -79,7 +79,8 @@ export function AdminOverview() {
           </Section>
 
           <p className="mt-4 text-xs text-slate-400">
-            Manage account balances on the Personal page, and salary entries on the Salary page.
+            Manage account balances on the Personal page, detailed holdings on Investments, loan
+            schedules on Loans, salary entries on Salary, and client work/invoices on Freelance.
           </p>
         </>
       )}

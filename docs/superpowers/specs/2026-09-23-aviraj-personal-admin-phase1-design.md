@@ -1,44 +1,58 @@
-# Aviraj Personal Admin — Phase 1 Design
+# Aviraj Personal Admin — Design & Phase History
 
 ## Context
 This supersedes the shop-only scope in `2026-09-23-shop-hisab-kitab-design.md`. The project is
-now a private consolidated financial command center covering salary, shop, personal finances,
-and (later) freelancing/loans/investments detail modules, per the owner's 4-phase blueprint.
+a private consolidated financial command center covering salary, shop, personal finances,
+freelancing, loans, and investments, built in phases and merged incrementally.
 
-## Phase 1 scope (implemented)
+## Phase 1 (foundation)
 - Renamed app: "Aviraj Personal Admin"
 - Unified `transactions` collection tagged with `module: "shop" | "personal"` so shop and
   personal cash flow never mix, and a manual `shop_draw` income category is the *only* way
   shop money counts as personal income (shop turnover is never double-counted)
-- `accounts` collection: manually-maintained balances for bank, cash, investment, PF, other
-  assets, and loans (liabilities) — net worth = assets − liabilities, using latest balances
+- `accounts` collection: manually-maintained balances for bank, cash, other assets, and loans
+  (a coarse `investment`/`pf` type also existed here before Phase 3 added dedicated modules)
 - `salary_records` collection: monthly gross/deductions/status, manually entered
-- Consolidated admin overview (`/`) with a period filter: net worth, monthly income/expense,
-  income-by-source (salary, shop draw, freelance placeholder), financial position breakdown
+- Consolidated admin overview (`/`) with a period filter
 - Nav-based module pages: Overview (`/`), Salary (`/salary`), Shop (`/shop`), Personal (`/personal`)
-- Shop module is functionally unchanged from the original app, just scoped by `module: "shop"`
 
-## Deferred (owner's own phases 2–4)
-- Freelancing: clients, timesheets, invoices, receivables, USD contracts
-- Loans: per-lender repayment schedules, EMI automation
-- Investments: holdings/valuations detail beyond a single manual balance per account
-- Recurring rules (salary/PF/EMI automation), a worker process, scheduled backups
-- Audit log of financial record changes
+## Phase 2 + 3 (built in parallel, then merged)
+Three independent modules were built concurrently in isolated git worktrees and merged:
 
-These are large enough that each warrants its own design pass before building — see the
-phase breakdown in the original request for suggested order.
+**Freelancing** (`/freelance`) — `clients`, `work_logs`, `invoices`, `lead_expenses` collections.
+Unbilled work (`work_logs` with `invoiced: false`) and receivables (`invoices` with
+`status: "issued"`) are strictly separate — issuing an invoice atomically flips the referenced
+work logs to `invoiced: true`. USD clients store amounts in cents plus an `exchangeRateToInr`
+and `feesMinor`, with `netInrPaise` as the actual INR settled amount (recorded for real at
+payment time). See `app/src/lib/freelance.ts` for the gross/net calculation helpers.
 
-## Data model additions
-```
-accounts: { _id, name, type: bank|cash|investment|pf|other_asset|loan, balancePaise, createdAt, updatedAt }
-salary_records: { _id, month: "YYYY-MM" (unique), grossPaise, deductionsPaise, status: expected|received, receivedDate, note, createdAt, updatedAt }
-transactions: (existing shape) + module: "shop" | "personal"
-```
+**Loans** (`/loans`) — `loans` + `loan_payments` collections track a full repayment schedule per
+lender (paid/pending installment counts, total paid, projected remaining scheduled payments).
+Outstanding principal is a separate, manually-updated field — never derived from the payment
+schedule, since the interest/principal split isn't always known. This is independent of the
+older generic `accounts` `type: "loan"` balances.
 
-## Admin overview calculation
-- `netWorth` = sum(bank+cash+investment+pf+other_asset balances) − sum(loan balances)
-- `monthlyIncome` (period-scoped) = salary net (gross − deductions, records in range) +
-  personal-module income where `category = "shop_draw"` + other personal income
-- `monthlyExpense` = personal-module expenses only (shop expenses are business cost, not
-  personal spend, and are shown separately as `shopNetCashFlow`)
-- `receivables` and `incomeSources.freelance` are hardcoded to 0 pending the freelance module
+**Investments** (`/investments`) — `investments` + `investment_valuations` collections track
+holdings (equity, mutual funds, fixed deposits, savings) with a valuation history trail, gain/loss
+vs. invested amount where known. Supersedes the coarse `accounts` `type: "investment"` balance.
+
+## Phase 4 (consolidation, this pass)
+The admin overview (`/api/admin/overview`) now pulls from all modules:
+- `investmentsTotal` = sum of `investments.currentValuePaise` (the `accounts` `type: "investment"`
+  balance is now ignored here to avoid double-counting once holdings live in the investments module)
+- `liabilitiesTotal` = sum of `accounts` `type: "loan"` balances + sum of `loans.outstandingPrincipalPaise`
+  for `status: "active"` loans
+- `incomeSources.freelance` / `monthlyIncome` include `invoices.netInrPaise` for invoices paid
+  within the selected period
+- `receivables` = sum of `netInrPaise` across all currently-`issued` invoices (a snapshot, not
+  period-filtered — it's "what's owed right now")
+
+## Still deferred
+- Recurring-entry automation (auto-generating expected monthly salary/PF/EMI entries) and a
+  worker process to run it
+- Scheduled/automated backups (manual `mongodump` documented in the README)
+- An audit log of financial record edits
+- A per-client freelance detail page (the current `/freelance` page is a single page with all
+  clients/work/invoices inline, by design, to keep Phase 2 scoped)
+
+These need their own design pass — each is a real feature, not a quick add-on.

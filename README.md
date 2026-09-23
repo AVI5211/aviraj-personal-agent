@@ -7,18 +7,24 @@ See `docs/superpowers/specs/` for the full design history:
 - `2026-09-23-shop-hisab-kitab-design.md` — original shop-only v1
 - `2026-09-23-aviraj-personal-admin-phase1-design.md` — current scope and what's deferred
 
-## Modules (Phase 1)
+## Modules
 
 - **Overview** (`/`) — consolidated net worth, monthly income/expense, income-by-source, with a
   date filter (today/week/month/last month/year/custom/all-time)
 - **Salary** (`/salary`) — monthly gross/deductions/net salary records
 - **Shop** (`/shop`) — the original shop hisab-kitab: BharatPe/cash income, expenses, history
-- **Personal** (`/personal`) — account balances (bank, cash, investments, PF, loans) for net
-  worth, plus personal income/expense tracking
+- **Personal** (`/personal`) — bank/cash/other-asset/loan account balances for net worth, plus
+  personal income/expense tracking
+- **Freelance** (`/freelance`) — clients, timesheets, unbilled work, invoices/receivables
+  (USD or INR contracts), and lead expenses
+- **Loans** (`/loans`) — per-lender repayment schedules: EMIs, paid/pending installments,
+  outstanding principal
+- **Investments** (`/investments`) — holdings (equity, mutual funds, fixed deposits, savings)
+  with a valuation history and gain/loss tracking
 
-Freelancing, per-loan repayment schedules, detailed investment holdings, and automation
-(recurring salary/PF/EMI entries, scheduled backups) are deferred — each needs its own design
-pass before being built (see the phase-1 design doc).
+Recurring-entry automation (auto-generated monthly salary/PF/EMI), scheduled backups, and an
+audit log of financial record edits are deferred — each needs its own design pass before being
+built (see `docs/superpowers/specs/2026-09-23-aviraj-personal-admin-phase1-design.md`).
 
 ## Stack
 
