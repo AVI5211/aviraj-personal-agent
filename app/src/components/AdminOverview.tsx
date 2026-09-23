@@ -61,9 +61,15 @@ export function AdminOverview() {
           </div>
 
           <Section title="Income sources">
-            <Row label="Perforce salary" value={overview.incomeSources.salary} />
+            <Row
+              label="Perforce salary (in-hand)"
+              value={overview.incomeSources.salary}
+              note={`CTC: ${formatPaiseAsInr(overview.incomeSources.salaryCtc)}`}
+            />
             <Row label="Freelancing" value={overview.incomeSources.freelance} />
             <Row label="Shop (drawn)" value={overview.incomeSources.shop} />
+            <Row label="Other personal income" value={overview.incomeSources.otherPersonal} />
+            <Row label="Total income (this period)" value={overview.monthlyIncome} bold />
           </Section>
 
           <Section title="Financial position">
@@ -107,14 +113,28 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({ label, value, negative, note }: { label: string; value: number; negative?: boolean; note?: string }) {
+function Row({
+  label,
+  value,
+  negative,
+  note,
+  bold,
+}: {
+  label: string;
+  value: number;
+  negative?: boolean;
+  note?: string;
+  bold?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-between py-2">
+    <div className={`flex items-center justify-between py-2 ${bold ? "border-t border-slate-200 pt-3" : ""}`}>
       <div>
-        <p className="text-sm text-slate-700">{label}</p>
+        <p className={`text-sm ${bold ? "font-semibold text-slate-900" : "text-slate-700"}`}>{label}</p>
         {note && <p className="text-xs text-slate-400">{note}</p>}
       </div>
-      <span className={`text-sm font-semibold ${negative ? "text-red-600" : "text-slate-800"}`}>
+      <span
+        className={`text-sm font-semibold ${negative ? "text-red-600" : bold ? "text-emerald-700" : "text-slate-800"}`}
+      >
         {formatPaiseAsInr(value)}
       </span>
     </div>

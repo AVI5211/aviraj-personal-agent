@@ -254,8 +254,10 @@ export interface AdminOverviewResponse {
   monthlyExpense: number;
   incomeSources: {
     salary: number;
+    salaryCtc: number;
     shop: number;
     freelance: number;
+    otherPersonal: number;
   };
   shopNetCashFlow: number;
   receivables: number;

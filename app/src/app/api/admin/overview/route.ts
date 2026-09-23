@@ -5,7 +5,7 @@ import { periodQuerySchema, SHOP_DRAW_CATEGORY } from "@/lib/validation";
 import { resolvePeriod } from "@/lib/dates";
 import { buildDateRangeFilter, type TransactionDoc } from "@/lib/transactions";
 import { isLiability, type AccountDoc } from "@/lib/accounts";
-import { netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
+import { ctcPaiseFor, netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
 import type { InvestmentDoc } from "@/lib/investments";
 import type { LoanDoc } from "@/lib/loans";
 import type { InvoiceDoc } from "@/lib/freelance";
@@ -92,6 +92,11 @@ export async function GET(request: NextRequest) {
   const salaryIncome = salaryRecords
     .filter((record) => record.status === "received")
     .reduce((sum, record) => sum + netPaiseFor(record), 0);
+  // Reference figure only — CTC includes employer PF and non-cash components (insurance,
+  // gym, etc.) that never land as income, so it is never added into monthlyIncome.
+  const salaryCtc = salaryRecords
+    .filter((record) => record.status === "received")
+    .reduce((sum, record) => sum + ctcPaiseFor(record), 0);
   const freelanceIncome = paidInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
   const receivables = issuedInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
 
@@ -131,8 +136,10 @@ export async function GET(request: NextRequest) {
     monthlyExpense: personalExpense,
     incomeSources: {
       salary: salaryIncome,
+      salaryCtc,
       shop: shopDrawIncome,
       freelance: freelanceIncome,
+      otherPersonal: personalOtherIncome,
     },
     shopNetCashFlow: shopIncome - shopExpense,
     receivables,
