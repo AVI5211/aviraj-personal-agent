@@ -7,25 +7,29 @@ export const size = {
 
 export const contentType = "image/png";
 
-export default function Icon() {
+export default async function Icon() {
+  const avatar = await fetch(new URL("../../public/aviraj-avatar.png", import.meta.url)).then(
+    (response) => response.arrayBuffer(),
+  );
+
   return new ImageResponse(
     (
       <div
         style={{
           alignItems: "center",
-          background: "linear-gradient(135deg, #14532d 0%, #22c55e 100%)",
-          color: "white",
+          background: "#f8fafc",
           display: "flex",
-          fontFamily: "sans-serif",
-          fontSize: 168,
-          fontWeight: 800,
           height: "100%",
           justifyContent: "center",
-          letterSpacing: -18,
+          overflow: "hidden",
           width: "100%",
         }}
       >
-        AM
+        <img
+          alt="Aviraj"
+          src={avatar as unknown as string}
+          style={{ height: "100%", objectFit: "cover", width: "100%" }}
+        />
       </div>
     ),
     size,
