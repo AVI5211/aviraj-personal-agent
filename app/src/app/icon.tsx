@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
-import avatar from "../../public/aviraj-avatar.png";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export const size = {
   width: 512,
@@ -7,8 +8,12 @@ export const size = {
 };
 
 export const contentType = "image/png";
+export const runtime = "nodejs";
 
-export default function Icon() {
+export default async function Icon() {
+  const avatar = await readFile(join(process.cwd(), "public", "aviraj-avatar.png"));
+  const avatarDataUri = `data:image/png;base64,${avatar.toString("base64")}`;
+
   return new ImageResponse(
     (
       <div
@@ -24,7 +29,7 @@ export default function Icon() {
       >
         <img
           alt="Aviraj"
-          src={avatar.src}
+          src={avatarDataUri}
           style={{ height: "100%", objectFit: "cover", width: "100%" }}
         />
       </div>
