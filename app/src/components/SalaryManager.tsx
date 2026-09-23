@@ -42,6 +42,7 @@ export function SalaryManager() {
   const [pfEmployee, setPfEmployee] = useState("0");
   const [pfEmployer, setPfEmployer] = useState("0");
   const [tds, setTds] = useState("0");
+  const [otherCtc, setOtherCtc] = useState("0");
   const [recurringPf, setRecurringPf] = useState(false);
   const [recurringTds, setRecurringTds] = useState(false);
   const [status, setStatus] = useState<SalaryStatus>("received");
@@ -88,6 +89,11 @@ export function SalaryManager() {
       setTds((latest.tdsPaise / 100).toString());
       setRecurringTds(true);
     }
+    // Insurance/gym-style CTC components are effectively fixed month to month, so
+    // always carry the last value forward (no separate "recurring" toggle needed).
+    if (latest.otherCtcComponentsPaise > 0) {
+      setOtherCtc((latest.otherCtcComponentsPaise / 100).toString());
+    }
     setPrefilled(true);
   }, [records, prefilled]);
 
@@ -112,6 +118,7 @@ export function SalaryManager() {
         pfEmployeePaise: Math.round(Number(pfEmployee || "0") * 100),
         pfEmployerPaise: Math.round(Number(pfEmployer || "0") * 100),
         tdsPaise: Math.round(Number(tds || "0") * 100),
+        otherCtcComponentsPaise: Math.round(Number(otherCtc || "0") * 100),
         recurringPf,
         recurringTds,
         status,
@@ -134,6 +141,16 @@ export function SalaryManager() {
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this salary record?")) return;
     await fetch(`/api/salary/${id}`, { method: "DELETE" });
+    fetchRecords();
+    fetchOverview(periodKey);
+  }
+
+  async function handleMarkReceived(id: string) {
+    await fetch(`/api/salary/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "received", receivedDate: todayInShopTz() }),
+    });
     fetchRecords();
     fetchOverview(periodKey);
   }
@@ -194,6 +211,7 @@ export function SalaryManager() {
             <OverviewCard label="Total PF (Employee)" value={overview.totalPfEmployeePaise} />
             <OverviewCard label="Total PF (Employer)" value={overview.totalPfEmployerPaise} />
             <OverviewCard label="Other Deductions" value={overview.totalOtherDeductionsPaise} />
+            <OverviewCard label="Other CTC (Insurance, Gym, etc.)" value={overview.totalOtherCtcComponentsPaise} />
           </div>
         )}
       </div>
@@ -203,27 +221,58 @@ export function SalaryManager() {
 
         <div className="mb-4 divide-y divide-slate-100">
           {records.length === 0 && <p className="py-4 text-sm text-slate-500">No salary records yet.</p>}
-          {records.map((record) => (
-            <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-800">{record.month}</p>
-                <p className="text-xs text-slate-400">
-                  CTC {formatPaiseAsInr(record.ctcPaise)} · PF {formatPaiseAsInr(record.pfEmployeePaise)} · TDS{" "}
-                  {formatPaiseAsInr(record.tdsPaise)} · {record.status}
-                </p>
+          {records.map((record) => {
+            const isForecasted = record.status === "expected";
+            return (
+              <div
+                key={record.id}
+                className={`flex flex-wrap items-center justify-between gap-2 py-2 ${isForecasted ? "opacity-70" : ""}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-slate-800">{record.month}</p>
+                    {isForecasted ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        Forecasted
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        Received
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    CTC {formatPaiseAsInr(record.ctcPaise)} · PF {formatPaiseAsInr(record.pfEmployeePaise)} · TDS{" "}
+                    {formatPaiseAsInr(record.tdsPaise)}
+                    {record.otherCtcComponentsPaise > 0
+                      ? ` · Other CTC ${formatPaiseAsInr(record.otherCtcComponentsPaise)}`
+                      : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className={`text-sm font-semibold ${isForecasted ? "text-amber-600" : "text-emerald-600"}`}>
+                    {formatPaiseAsInr(record.netPaise)}
+                  </span>
+                  {isForecasted && (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkReceived(record.id)}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                    >
+                      Mark Received
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(record.id)}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-sm font-semibold text-emerald-600">{formatPaiseAsInr(record.netPaise)}</span>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(record.id)}
-                  className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <form onSubmit={handleAdd} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
@@ -313,6 +362,19 @@ export function SalaryManager() {
               value={deductions}
               onChange={(e) => setDeductions(e.target.value)}
               className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Other CTC — Insurance, Gym, etc. (INR)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={otherCtc}
+              onChange={(e) => setOtherCtc(e.target.value)}
+              className="w-full sm:w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>

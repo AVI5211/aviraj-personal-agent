@@ -8,6 +8,7 @@ describe("salary calculations", () => {
     pfEmployeePaise: 1800_00,
     pfEmployerPaise: 1800_00,
     tdsPaise: 5000_00,
+    otherCtcComponentsPaise: 0,
   };
 
   it("computes total deductions as other + PF employee + TDS", () => {
@@ -22,13 +23,27 @@ describe("salary calculations", () => {
     expect(ctcPaiseFor(record)).toBe(100000_00 + 1800_00);
   });
 
+  it("includes other CTC-only components (insurance, gym, etc.) in CTC but not in-hand", () => {
+    const withExtras = { ...record, otherCtcComponentsPaise: 1500_00 };
+    expect(ctcPaiseFor(withExtras)).toBe(100000_00 + 1800_00 + 1500_00);
+    expect(netPaiseFor(withExtras)).toBe(netPaiseFor(record));
+  });
+
   it("aggregates an overview across multiple records", () => {
     const overview = computeSalaryOverview([record, record]);
     expect(overview.recordCount).toBe(2);
     expect(overview.totalGrossPaise).toBe(200000_00);
     expect(overview.totalTaxPaidPaise).toBe(10000_00);
     expect(overview.totalCtcPaise).toBe(203600_00);
+    expect(overview.totalOtherCtcComponentsPaise).toBe(0);
     expect(overview.totalInHandPaise).toBe(overview.totalGrossPaise - overview.totalDeductionsPaise);
+  });
+
+  it("adds other CTC components into the aggregated CTC total", () => {
+    const withExtras = { ...record, otherCtcComponentsPaise: 1500_00 };
+    const overview = computeSalaryOverview([withExtras, withExtras]);
+    expect(overview.totalOtherCtcComponentsPaise).toBe(3000_00);
+    expect(overview.totalCtcPaise).toBe(203600_00 + 3000_00);
   });
 
   it("returns zeroed overview for no records", () => {

@@ -60,6 +60,7 @@ export interface SalaryRecordApi {
   pfEmployeePaise: number;
   pfEmployerPaise: number;
   tdsPaise: number;
+  otherCtcComponentsPaise: number;
   recurringPf: boolean;
   recurringTds: boolean;
   totalDeductionsPaise: number;
@@ -80,6 +81,7 @@ export interface SalaryOverviewResponse {
   totalPfEmployerPaise: number;
   totalTdsPaise: number;
   totalOtherDeductionsPaise: number;
+  totalOtherCtcComponentsPaise: number;
   totalDeductionsPaise: number;
   totalTaxPaidPaise: number;
   recordCount: number;

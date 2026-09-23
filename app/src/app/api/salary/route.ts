@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     pfEmployeePaise: parsed.data.pfEmployeePaise,
     pfEmployerPaise: parsed.data.pfEmployerPaise,
     tdsPaise: parsed.data.tdsPaise,
+    otherCtcComponentsPaise: parsed.data.otherCtcComponentsPaise,
     recurringPf: parsed.data.recurringPf,
     recurringTds: parsed.data.recurringTds,
     status: parsed.data.status,

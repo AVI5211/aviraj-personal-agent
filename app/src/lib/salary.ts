@@ -9,6 +9,10 @@ export interface SalaryRecordDoc {
   pfEmployeePaise: number;
   pfEmployerPaise: number;
   tdsPaise: number;
+  // Employer-side CTC components that never appear on the payslip's earnings/deductions
+  // table and never touch the employee's hand — e.g. group health insurance premium,
+  // gym/wellness allowance paid directly by the employer. Affects CTC only.
+  otherCtcComponentsPaise: number;
   recurringPf: boolean;
   recurringTds: boolean;
   status: SalaryStatus;
@@ -26,8 +30,12 @@ export function netPaiseFor(doc: Pick<SalaryRecordDoc, "grossPaise" | "deduction
   return doc.grossPaise - totalDeductionsFor(doc);
 }
 
-export function ctcPaiseFor(doc: Pick<SalaryRecordDoc, "grossPaise" | "pfEmployerPaise">): number {
-  return doc.grossPaise + doc.pfEmployerPaise;
+export function ctcPaiseFor(
+  doc: Pick<SalaryRecordDoc, "grossPaise" | "pfEmployerPaise" | "otherCtcComponentsPaise">
+): number {
+  // otherCtcComponentsPaise was added after some records already existed in the database;
+  // treat a missing value as 0 rather than propagating NaN into the UI.
+  return doc.grossPaise + doc.pfEmployerPaise + (doc.otherCtcComponentsPaise ?? 0);
 }
 
 export function serializeSalaryRecord(doc: SalaryRecordDoc): SalaryRecordApi {
@@ -39,6 +47,7 @@ export function serializeSalaryRecord(doc: SalaryRecordDoc): SalaryRecordApi {
     pfEmployeePaise: doc.pfEmployeePaise,
     pfEmployerPaise: doc.pfEmployerPaise,
     tdsPaise: doc.tdsPaise,
+    otherCtcComponentsPaise: doc.otherCtcComponentsPaise,
     recurringPf: doc.recurringPf,
     recurringTds: doc.recurringTds,
     totalDeductionsPaise: totalDeductionsFor(doc),
@@ -55,7 +64,7 @@ export function serializeSalaryRecord(doc: SalaryRecordDoc): SalaryRecordApi {
 export function computeSalaryOverview(
   records: Pick<
     SalaryRecordDoc,
-    "grossPaise" | "deductionsPaise" | "pfEmployeePaise" | "pfEmployerPaise" | "tdsPaise"
+    "grossPaise" | "deductionsPaise" | "pfEmployeePaise" | "pfEmployerPaise" | "tdsPaise" | "otherCtcComponentsPaise"
   >[]
 ): SalaryOverviewResponse {
   let totalGrossPaise = 0;
@@ -63,6 +72,7 @@ export function computeSalaryOverview(
   let totalPfEmployerPaise = 0;
   let totalTdsPaise = 0;
   let totalOtherDeductionsPaise = 0;
+  let totalOtherCtcComponentsPaise = 0;
 
   for (const record of records) {
     totalGrossPaise += record.grossPaise;
@@ -70,18 +80,20 @@ export function computeSalaryOverview(
     totalPfEmployerPaise += record.pfEmployerPaise;
     totalTdsPaise += record.tdsPaise;
     totalOtherDeductionsPaise += record.deductionsPaise;
+    totalOtherCtcComponentsPaise += record.otherCtcComponentsPaise ?? 0;
   }
 
   const totalDeductionsPaise = totalPfEmployeePaise + totalTdsPaise + totalOtherDeductionsPaise;
 
   return {
     totalGrossPaise,
-    totalCtcPaise: totalGrossPaise + totalPfEmployerPaise,
+    totalCtcPaise: totalGrossPaise + totalPfEmployerPaise + totalOtherCtcComponentsPaise,
     totalInHandPaise: totalGrossPaise - totalDeductionsPaise,
     totalPfEmployeePaise,
     totalPfEmployerPaise,
     totalTdsPaise,
     totalOtherDeductionsPaise,
+    totalOtherCtcComponentsPaise,
     totalDeductionsPaise,
     totalTaxPaidPaise: totalTdsPaise,
     recordCount: records.length,
