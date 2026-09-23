@@ -12,6 +12,7 @@ const CATEGORY_OPTIONS: Record<Module, string[]> = {
     "electricity",
     "salary",
     "transport",
+    "labor",
     "renovation",
     "maintenance",
     "equipment",

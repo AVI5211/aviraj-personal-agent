@@ -9,6 +9,7 @@ export const SHOP_EXPENSE_CATEGORIES = [
   "electricity",
   "salary",
   "transport",
+  "labor",
   "renovation",
   "maintenance",
   "equipment",
