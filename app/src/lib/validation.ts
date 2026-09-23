@@ -196,3 +196,81 @@ export const markLoanPaymentPaidSchema = z.object({
 export const generateLoanPaymentsSchema = z.object({
   months: z.number().int().min(1).max(60).default(12),
 });
+
+// --- Freelance module ---
+
+export const CLIENT_CURRENCIES = ["USD", "INR"] as const;
+export const LEAD_EXPENSE_CATEGORIES = ["upwork_connects", "subscription", "other"] as const;
+export const INVOICE_STATUSES = ["issued", "paid"] as const;
+
+export const createClientSchema = z.object({
+  name: z.string().min(1).max(100),
+  currency: z.enum(CLIENT_CURRENCIES),
+  hourlyRateMinor: z.number().int().positive(),
+  contractNote: z.string().max(1000).default(""),
+});
+
+export const updateClientSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    currency: z.enum(CLIENT_CURRENCIES).optional(),
+    hourlyRateMinor: z.number().int().positive().optional(),
+    contractNote: z.string().max(1000).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
+
+export const createWorkLogSchema = z.object({
+  clientId: z.string().min(1),
+  date: dateString,
+  billableHours: z.number().min(0),
+  nonBillableHours: z.number().min(0).default(0),
+  description: z.string().max(500).default(""),
+});
+
+export const updateWorkLogSchema = z
+  .object({
+    date: dateString.optional(),
+    billableHours: z.number().min(0).optional(),
+    nonBillableHours: z.number().min(0).optional(),
+    description: z.string().max(500).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
+
+export const listWorkLogsQuerySchema = z.object({
+  clientId: z.string().optional(),
+  invoiced: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
+});
+
+export const createInvoiceSchema = z.object({
+  clientId: z.string().min(1),
+  workLogIds: z.array(z.string().min(1)).min(1),
+  feesMinor: z.number().int().min(0).default(0),
+  exchangeRateToInr: z.number().positive(),
+});
+
+export const updateInvoiceSchema = z.object({
+  status: z.literal("paid"),
+  netInrPaise: z.number().int().min(0),
+  paidDate: dateString,
+});
+
+export const listInvoicesQuerySchema = z.object({
+  clientId: z.string().optional(),
+  status: z.enum(INVOICE_STATUSES).optional(),
+});
+
+export const createLeadExpenseSchema = z.object({
+  date: dateString,
+  amountPaise: z.number().int().positive(),
+  category: z.enum(LEAD_EXPENSE_CATEGORIES),
+  description: z.string().max(500).default(""),
+});
+
+export const freelanceSummaryQuerySchema = z.object({
+  period: z.enum(["today", "week", "month", "lastMonth", "year", "custom", "all"]),
+  from: dateString.optional(),
+  to: dateString.optional(),
+});

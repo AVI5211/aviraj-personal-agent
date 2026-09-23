@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/personal", label: "Personal" },
   { href: "/investments", label: "Investments" },
   { href: "/loans", label: "Loans" },
+  { href: "/freelance", label: "Freelance" },
 ];
 
 export function NavBar() {
