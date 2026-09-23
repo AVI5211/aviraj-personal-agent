@@ -64,7 +64,10 @@ function emptyLogForm(defaultEpicId: string): LogFormState {
 }
 
 export function FreelanceManager() {
-  const [period, setPeriod] = useState<Period>("month");
+  // Freelance payments/invoices are often backdated or irregular (unlike salary/shop's
+  // steady monthly cadence), so default to showing everything rather than "this month"
+  // silently hiding real totals behind a date filter the user didn't think to change.
+  const [period, setPeriod] = useState<Period>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
@@ -543,6 +546,10 @@ export function FreelanceManager() {
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Tax Paid</p>
           <p className="mt-1 text-lg font-semibold text-red-600">{formatPaiseAsInr(summary?.taxPaidPaise ?? 0)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-medium text-slate-500">Service Fees Paid</p>
+          <p className="mt-1 text-lg font-semibold text-red-600">{formatPaiseAsInr(summary?.feesPaidPaise ?? 0)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Pending</p>

@@ -232,6 +232,7 @@ export interface FreelanceSummaryResponse {
   receivedPaise: number;
   inHandReceivedPaise: number;
   taxPaidPaise: number;
+  feesPaidPaise: number;
   pendingPaise: number;
   unbilledHours: number;
   unbilledAmountEstimatePaise: number;

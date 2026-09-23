@@ -47,6 +47,12 @@ export async function GET(request: NextRequest) {
   const taxPaidPaise = paidInvoices.reduce((sum, inv) => sum + inv.taxPaidPaise, 0);
   const inHandReceivedPaise = receivedPaise - taxPaidPaise;
   const pendingPaise = issuedInvoices.reduce((sum, inv) => sum + inv.netInrPaise, 0);
+  // Platform/service fees (Upwork %, Deel %, etc.), converted to INR at each invoice's own
+  // settlement rate so this lines up with how netInrPaise was computed for that invoice.
+  const feesPaidPaise = paidInvoices.reduce(
+    (sum, inv) => sum + Math.round(inv.feesMinor * inv.exchangeRateToInr),
+    0
+  );
 
   const byPlatform: Record<string, number> = { upwork: 0, deel: 0, other: 0 };
   for (const inv of paidInvoices) {
@@ -84,6 +90,7 @@ export async function GET(request: NextRequest) {
     receivedPaise,
     inHandReceivedPaise,
     taxPaidPaise,
+    feesPaidPaise,
     pendingPaise,
     unbilledHours,
     unbilledAmountEstimatePaise,
