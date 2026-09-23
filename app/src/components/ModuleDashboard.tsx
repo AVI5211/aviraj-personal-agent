@@ -5,6 +5,7 @@ import { TransactionHistory, type HistoryFilters } from "@/components/Transactio
 import { TransactionForm } from "@/components/TransactionForm";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { TrendChart } from "@/components/TrendChart";
+import { ReceivablesManager } from "@/components/ReceivablesManager";
 import { resolvePeriod } from "@/lib/dates";
 import { formatPaiseAsInr } from "@/lib/money";
 import type { Module, Period, SummaryResponse, TransactionApi, TrendPoint } from "@/lib/types";
@@ -146,6 +147,8 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
         </div>
       )}
 
+      {module === "personal" && <ReceivablesManager onChanged={handleSaved} />}
+
       <div className="mb-6 flex flex-wrap gap-3">
         <button
           onClick={() => setFormState({ type: "income" })}
@@ -164,7 +167,7 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
             onClick={() => setFormState({ type: "expense", initialCategory: "security_deposit" })}
             className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white sm:flex-1"
           >
-            + Security Deposit Given
+            + Money Lent / Deposit
           </button>
         )}
       </div>

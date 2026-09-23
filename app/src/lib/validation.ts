@@ -28,6 +28,7 @@ export const PERSONAL_EXPENSE_CATEGORIES = [
   "entertainment",
   "shopping",
   "security_deposit",
+  "money_lent",
   "other",
 ] as const;
 // Personal income with this category represents money drawn from the shop into personal
@@ -230,6 +231,19 @@ export const createRecurringExpenseSchema = z.object({
   monthlyAmountPaise: z.number().int().positive(),
   dueDayOfMonth: z.number().int().min(1).max(31),
   startDate: dateString.nullable().default(null),
+});
+
+export const createReceivableSchema = z.object({
+  personName: z.string().trim().min(1).max(100),
+  amountPaise: z.number().int().positive(),
+  givenDate: dateString,
+  expectedReturnDate: dateString.nullable().default(null),
+  paymentMethod: z.enum(PAYMENT_METHODS).default("cash"),
+});
+
+export const returnReceivableSchema = z.object({
+  returnedDate: dateString,
+  paymentMethod: z.enum(PAYMENT_METHODS).default("cash"),
 });
 
 // --- Freelance module ---

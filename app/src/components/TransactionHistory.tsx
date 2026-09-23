@@ -31,6 +31,9 @@ const CATEGORY_OPTIONS: Record<Module, string[]> = {
     "health",
     "entertainment",
     "shopping",
+    "security_deposit",
+    "money_lent",
+    "money_return",
     "other",
   ],
 };

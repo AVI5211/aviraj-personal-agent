@@ -21,6 +21,7 @@ interface TypeGroupResult {
   _id: "income" | "expense";
   total: number;
 }
+const ASSET_TRANSFER_CATEGORIES = ["security_deposit", "money_lent", "money_return"];
 
 function emptyMethodTotals(): Record<string, number> {
   return Object.fromEntries(PAYMENT_METHODS.map((method) => [method, 0]));
@@ -50,13 +51,13 @@ export async function GET(request: NextRequest) {
   const [byMethod, byCategory, baseOpeningBalance, priorTotals] = await Promise.all([
     transactions
       .aggregate<MethodGroupResult>([
-        { $match: rangeFilter },
+        { $match: { ...rangeFilter, category: { $nin: ASSET_TRANSFER_CATEGORIES } } },
         { $group: { _id: { type: "$type", paymentMethod: "$paymentMethod" }, total: { $sum: "$amountPaise" } } },
       ])
       .toArray(),
     transactions
       .aggregate<CategoryGroupResult>([
-        { $match: { ...rangeFilter, type: "expense" } },
+        { $match: { ...rangeFilter, type: "expense", category: { $nin: ASSET_TRANSFER_CATEGORIES } } },
         { $group: { _id: "$category", total: { $sum: "$amountPaise" } } },
       ])
       .toArray(),
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
     range.from
       ? transactions
           .aggregate<TypeGroupResult>([
-            { $match: { ...moduleFilter, transactionDate: { $lt: range.from } } },
+            { $match: { ...moduleFilter, transactionDate: { $lt: range.from }, category: { $nin: ASSET_TRANSFER_CATEGORIES } } },
             { $group: { _id: "$type", total: { $sum: "$amountPaise" } } },
           ])
           .toArray()

@@ -26,6 +26,18 @@ export interface TransactionListResponse {
   pageSize: number;
 }
 
+export type ReceivableStatus = "pending" | "returned";
+export interface ReceivableApi {
+  id: string;
+  personName: string;
+  amountPaise: number;
+  givenDate: string;
+  expectedReturnDate: string | null;
+  status: ReceivableStatus;
+  returnedDate: string | null;
+  createdAt: string;
+}
+
 export interface SummaryResponse {
   range: { from: string | null; to: string | null };
   totalIncome: number;
