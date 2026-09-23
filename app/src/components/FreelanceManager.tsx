@@ -790,16 +790,18 @@ export function FreelanceManager() {
       {/* Summary cards */}
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Total Received</p>
+          <p className="text-xs font-medium text-slate-500">Gross earned</p>
+          <p className="mt-1 text-lg font-semibold text-emerald-600">
+            {formatPaiseAsInr(summary?.grossEarnedPaise ?? 0)}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">Before service fees &amp; tax</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-medium text-slate-500">Received after fees</p>
           <p className="mt-1 text-lg font-semibold text-emerald-600">
             {formatPaiseAsInr(summary?.receivedPaise ?? 0)}
           </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Total In-Hand Received</p>
-          <p className="mt-1 text-lg font-semibold text-emerald-600">
-            {formatPaiseAsInr(summary?.inHandReceivedPaise ?? 0)}
-          </p>
+          <p className="mt-1 text-[11px] text-slate-400">Amount paid out by platforms</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Tax Paid</p>
@@ -808,6 +810,11 @@ export function FreelanceManager() {
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Service Fees Paid</p>
           <p className="mt-1 text-lg font-semibold text-red-600">{formatPaiseAsInr(summary?.feesPaidPaise ?? 0)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-medium text-slate-500">In hand after tax</p>
+          <p className="mt-1 text-lg font-semibold text-emerald-600">{formatPaiseAsInr(summary?.inHandReceivedPaise ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-slate-400">After service fees &amp; tax</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Pending Invoices</p>

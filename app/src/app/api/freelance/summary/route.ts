@@ -43,6 +43,12 @@ export async function GET(request: NextRequest) {
       .toArray(),
   ]);
 
+  // Gross is what clients paid for the work before a platform (Upwork, Deel, etc.)
+  // retained its service fee. `netInrPaise` is the amount that actually arrived.
+  const grossEarnedPaise = paidInvoices.reduce(
+    (sum, inv) => sum + Math.round(inv.grossAmountMinor * inv.exchangeRateToInr),
+    0
+  );
   const receivedPaise = paidInvoices.reduce((sum, inv) => sum + inv.netInrPaise, 0);
   const taxPaidPaise = paidInvoices.reduce((sum, inv) => sum + inv.taxPaidPaise, 0);
   const inHandReceivedPaise = receivedPaise - taxPaidPaise;
@@ -87,6 +93,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     range,
+    grossEarnedPaise,
     receivedPaise,
     inHandReceivedPaise,
     taxPaidPaise,

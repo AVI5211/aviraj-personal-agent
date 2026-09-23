@@ -255,6 +255,8 @@ export interface LeadExpenseApi {
 
 export interface FreelanceSummaryResponse {
   range: { from: string | null; to: string | null };
+  /** Paid invoice amount before platform/service fees and tax. */
+  grossEarnedPaise: number;
   receivedPaise: number;
   inHandReceivedPaise: number;
   taxPaidPaise: number;
