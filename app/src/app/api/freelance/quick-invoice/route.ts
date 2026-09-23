@@ -100,7 +100,9 @@ export async function POST(request: NextRequest) {
   const hours = includedLogs.reduce((sum, log) => sum + log.billableHours, 0);
   const grossAmountMinor = computeGrossAmountMinor(includedLogs, client.hourlyRateMinor);
   const netInrPaise = computeNetInrPaise(grossAmountMinor, data.feesMinor, data.exchangeRateToInr);
-  const taxPaidPaise = Math.round(netInrPaise * (data.taxPercent / 100));
+  // Tax withheld is only meaningful once the payment has actually landed — an
+  // issued-but-unpaid invoice can't have tax "paid" on it yet.
+  const taxPaidPaise = data.markPaid ? Math.round(netInrPaise * (data.taxPercent / 100)) : 0;
 
   const invoiceDoc = {
     clientId,
@@ -114,8 +116,8 @@ export async function POST(request: NextRequest) {
     exchangeRateToInr: data.exchangeRateToInr,
     netInrPaise,
     taxPaidPaise,
-    status: "paid" as const,
-    paidDate: today,
+    status: data.markPaid ? ("paid" as const) : ("issued" as const),
+    paidDate: data.markPaid ? today : null,
     createdAt: now,
     updatedAt: now,
   };

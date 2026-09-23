@@ -296,6 +296,7 @@ export const createQuickInvoiceSchema = z.object({
   feesMinor: z.number().int().min(0).default(0),
   exchangeRateToInr: z.number().positive(),
   taxPercent: z.number().min(0).max(100).default(0),
+  markPaid: z.boolean().default(true),
 });
 
 export const listInvoicesQuerySchema = z.object({

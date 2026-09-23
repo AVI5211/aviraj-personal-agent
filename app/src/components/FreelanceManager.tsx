@@ -108,7 +108,7 @@ export function FreelanceManager() {
   // Quick invoice: pay a flat number of hours per client regardless of which
   // epics/entries they come from, keyed by clientId.
   const [quickInvoiceForms, setQuickInvoiceForms] = useState<
-    Record<string, { hours: string; platform: PaymentPlatform; feesMinor: string; taxPercent: string }>
+    Record<string, { hours: string; platform: PaymentPlatform; feesMinor: string; taxPercent: string; markPaid: boolean }>
   >({});
   const [quickInvoiceSubmitting, setQuickInvoiceSubmitting] = useState<string | null>(null);
 
@@ -447,7 +447,15 @@ export function FreelanceManager() {
   const canIssueInvoice = selectedLogs.length > 0 && selectedClientIds.size === 1;
 
   function getQuickInvoiceForm(clientId: string) {
-    return quickInvoiceForms[clientId] ?? { hours: "", platform: "upwork" as PaymentPlatform, feesMinor: "0", taxPercent: "0" };
+    return (
+      quickInvoiceForms[clientId] ?? {
+        hours: "",
+        platform: "upwork" as PaymentPlatform,
+        feesMinor: "0",
+        taxPercent: "0",
+        markPaid: true,
+      }
+    );
   }
 
   function setQuickInvoiceForm(clientId: string, patch: Partial<ReturnType<typeof getQuickInvoiceForm>>) {
@@ -487,6 +495,7 @@ export function FreelanceManager() {
         feesMinor: Math.round(fees * 100),
         exchangeRateToInr,
         taxPercent,
+        markPaid: form.markPaid,
       }),
     });
     setQuickInvoiceSubmitting(null);
@@ -501,7 +510,10 @@ export function FreelanceManager() {
         `Only ${data.invoicedHours}h of unbilled work was available for this client — invoiced that instead of ${data.requestedHours}h.`
       );
     }
-    setQuickInvoiceForms((prev) => ({ ...prev, [client.id]: { hours: "", platform: form.platform, feesMinor: "0", taxPercent: "0" } }));
+    setQuickInvoiceForms((prev) => ({
+      ...prev,
+      [client.id]: { hours: "", platform: form.platform, feesMinor: "0", taxPercent: "0", markPaid: form.markPaid },
+    }));
     refreshAfterMutation();
   }
 
@@ -1281,28 +1293,46 @@ export function FreelanceManager() {
                       className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-700">Tax %</label>
+                  {quickForm.markPaid && (
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-700">Tax %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={quickForm.taxPercent}
+                        onChange={(e) => setQuickInvoiceForm(clientId, { taxPercent: e.target.value })}
+                        className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 pb-2">
                     <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={quickForm.taxPercent}
-                      onChange={(e) => setQuickInvoiceForm(clientId, { taxPercent: e.target.value })}
-                      className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      id={`quick-markpaid-${clientId}`}
+                      type="checkbox"
+                      checked={quickForm.markPaid}
+                      onChange={(e) => setQuickInvoiceForm(clientId, { markPaid: e.target.checked })}
                     />
+                    <label htmlFor={`quick-markpaid-${clientId}`} className="text-xs text-slate-600">
+                      Mark as paid now
+                    </label>
                   </div>
                   <button
                     type="submit"
                     disabled={quickInvoiceSubmitting === clientId}
                     className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
                   >
-                    {quickInvoiceSubmitting === clientId ? "Invoicing..." : "Invoice & Mark Paid"}
+                    {quickInvoiceSubmitting === clientId
+                      ? "Submitting..."
+                      : quickForm.markPaid
+                        ? "Invoice & Mark Paid"
+                        : "Submit Invoice (Pending)"}
                   </button>
                   <p className="w-full text-xs text-slate-500">
                     Takes the oldest unbilled hours first, regardless of epic. If it lands mid-entry, that entry is
                     split — the rest stays unbilled, marked &ldquo;partially billed&rdquo; in its notes.
+                    {!quickForm.markPaid && " Unchecked, this goes to Pending Invoices until you mark it paid later."}
                   </p>
                 </form>
               )}
