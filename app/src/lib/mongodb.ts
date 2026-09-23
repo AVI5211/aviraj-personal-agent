@@ -26,6 +26,8 @@ export async function ensureIndexes(): Promise<void> {
   const db = await getDb();
 
   await db.collection("users").createIndex({ username: 1 }, { unique: true });
+  await db.collection("passkeys").createIndex({ credentialID: 1 }, { unique: true });
+  await db.collection("passkeys").createIndex({ userId: 1 });
 
   await db.collection("transactions").createIndex({ module: 1, transactionDate: 1 });
   await db.collection("transactions").createIndex({ module: 1, type: 1, transactionDate: 1 });

@@ -5,6 +5,9 @@ import { getEnv } from "@/lib/env";
 export interface SessionData {
   userId?: string;
   username?: string;
+  passkeyChallenge?: string;
+  passkeyRpId?: string;
+  passkeyOrigin?: string;
 }
 
 export function getSessionOptions(): SessionOptions {

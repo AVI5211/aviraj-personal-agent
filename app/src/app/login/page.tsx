@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { startAuthentication } from "@simplewebauthn/browser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -9,6 +10,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleFingerprintLogin() {
+    setSubmitting(true); setError(null);
+    try {
+      const optionsResponse = await fetch("/api/auth/passkey/login/options", { method: "POST" });
+      const options = await optionsResponse.json();
+      if (!optionsResponse.ok) throw new Error(options.error);
+      const credential = await startAuthentication({ optionsJSON: options });
+      const verifyResponse = await fetch("/api/auth/passkey/login/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credential) });
+      if (!verifyResponse.ok) throw new Error((await verifyResponse.json()).error);
+      router.push("/"); router.refresh();
+    } catch (err) { setError(err instanceof Error ? err.message : "Fingerprint unlock was cancelled"); }
+    finally { setSubmitting(false); }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -74,6 +89,9 @@ export default function LoginPage() {
           className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {submitting ? "Signing in..." : "Sign in"}
+        </button>
+        <button type="button" onClick={handleFingerprintLogin} disabled={submitting} className="mt-3 min-h-11 w-full rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 disabled:opacity-50">
+          Unlock with fingerprint
         </button>
       </form>
     </main>

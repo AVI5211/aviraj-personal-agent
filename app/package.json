@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
     "bcryptjs": "^2.4.3",
     "iron-session": "^8.0.4",
     "mongodb": "^6.9.0",
