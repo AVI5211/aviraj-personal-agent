@@ -42,12 +42,12 @@ export function NavBar() {
           Sign out
         </button>
       </div>
-      <nav aria-label="Primary navigation" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6">
+      <nav aria-label="Primary navigation" className="mx-auto grid max-w-5xl grid-cols-4 gap-1 px-4 pb-2 sm:flex sm:px-6">
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium ${
+            className={`rounded-lg px-2 py-2 text-center text-xs font-semibold sm:whitespace-nowrap sm:rounded-full sm:px-3 sm:py-1.5 sm:text-sm ${
               pathname === item.href ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             }`}
           >

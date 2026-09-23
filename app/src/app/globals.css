@@ -43,6 +43,7 @@ select,
 textarea,
 button {
   font-size: 16px;
+  min-height: 44px;
 }
 
 @media (min-width: 640px) {
@@ -51,5 +52,6 @@ button {
   textarea,
   button {
     font-size: inherit;
+    min-height: 0;
   }
 }
