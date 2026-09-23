@@ -122,16 +122,16 @@ export function LoansManager() {
         )}
         {loans.map((loan) => (
           <div key={loan.id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{loan.lender}</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-800">{loan.lender}</p>
                 <p className="text-xs text-slate-400">
                   EMI {formatPaiseAsInr(loan.monthlyEmiPaise)} · due day {loan.dueDayOfMonth} ·{" "}
                   {loan.status === "active" ? "active" : "closed"}
                   {loan.interestRateAnnualBps !== null ? ` · ${(loan.interestRateAnnualBps / 100).toFixed(2)}% p.a.` : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setExpandedId(expandedId === loan.id ? null : loan.id)}
@@ -193,7 +193,7 @@ export function LoansManager() {
 
       <form onSubmit={handleAdd} className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-600">Add Loan</h2>
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Lender</label>
             <input
@@ -214,7 +214,7 @@ export function LoansManager() {
               required
               value={originalPrincipal}
               onChange={(e) => setOriginalPrincipal(e.target.value)}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -226,7 +226,7 @@ export function LoansManager() {
               required
               value={monthlyEmi}
               onChange={(e) => setMonthlyEmi(e.target.value)}
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -238,7 +238,7 @@ export function LoansManager() {
               required
               value={dueDayOfMonth}
               onChange={(e) => setDueDayOfMonth(e.target.value)}
-              className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-16 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -260,13 +260,13 @@ export function LoansManager() {
               value={interestRate}
               onChange={(e) => setInterestRate(e.target.value)}
               placeholder="optional"
-              className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1"
           >
             Add
           </button>
@@ -418,7 +418,7 @@ function LoanPaymentSchedule({ loan, onChanged }: { loan: LoanApi; onChanged: ()
         </div>
       )}
 
-      <form onSubmit={handleAddPayment} className="mt-3 flex flex-wrap items-end gap-2">
+      <form onSubmit={handleAddPayment} className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-700">Due date</label>
           <input
@@ -438,12 +438,12 @@ function LoanPaymentSchedule({ loan, onChanged }: { loan: LoanApi; onChanged: ()
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder={`default ${(loan.monthlyEmiPaise / 100).toFixed(2)}`}
-            className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+            className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-xs"
           />
         </div>
         <button
           type="submit"
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+          className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white sm:col-span-1"
         >
           Add payment
         </button>

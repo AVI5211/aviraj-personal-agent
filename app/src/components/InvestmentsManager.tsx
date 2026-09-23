@@ -288,7 +288,7 @@ export function InvestmentsManager() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-600">Add Holding</h2>
-        <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-2">
+        <form onSubmit={handleAdd} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Name</label>
             <input
@@ -323,7 +323,7 @@ export function InvestmentsManager() {
               required
               value={currentValue}
               onChange={(e) => setCurrentValue(e.target.value)}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -334,7 +334,7 @@ export function InvestmentsManager() {
               step="0.01"
               value={investedValue}
               onChange={(e) => setInvestedValue(e.target.value)}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -366,7 +366,7 @@ export function InvestmentsManager() {
                   step="0.01"
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}
-                  className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
                 />
               </div>
             </>
@@ -383,7 +383,7 @@ export function InvestmentsManager() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1"
           >
             Add
           </button>

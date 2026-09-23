@@ -87,12 +87,12 @@ export function AccountsManager() {
       <div className="mb-4 divide-y divide-slate-100">
         {accounts.length === 0 && <p className="py-4 text-sm text-slate-500">No accounts yet — add one below.</p>}
         {accounts.map((account) => (
-          <div key={account.id} className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium text-slate-800">{account.name}</p>
+          <div key={account.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-slate-800">{account.name}</p>
               <p className="text-xs text-slate-400">{ACCOUNT_TYPES.find((t) => t.value === account.type)?.label}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <span className={`text-sm font-semibold ${account.type === "loan" ? "text-red-600" : "text-slate-800"}`}>
                 {formatPaiseAsInr(account.balancePaise)}
               </span>
@@ -115,7 +115,7 @@ export function AccountsManager() {
         ))}
       </div>
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-2">
+      <form onSubmit={handleAdd} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-700">Name</label>
           <input
@@ -150,13 +150,13 @@ export function AccountsManager() {
             required
             value={balance}
             onChange={(e) => setBalance(e.target.value)}
-            className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           />
         </div>
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1"
         >
           Add
         </button>

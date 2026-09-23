@@ -162,15 +162,15 @@ export function SalaryManager() {
         <div className="mb-4 divide-y divide-slate-100">
           {records.length === 0 && <p className="py-4 text-sm text-slate-500">No salary records yet.</p>}
           {records.map((record) => (
-            <div key={record.id} className="flex items-center justify-between py-2">
-              <div>
+            <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-800">{record.month}</p>
                 <p className="text-xs text-slate-400">
                   CTC {formatPaiseAsInr(record.ctcPaise)} · PF {formatPaiseAsInr(record.pfEmployeePaise)} · TDS{" "}
                   {formatPaiseAsInr(record.tdsPaise)} · {record.status}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="text-sm font-semibold text-emerald-600">{formatPaiseAsInr(record.netPaise)}</span>
                 <button
                   type="button"
@@ -184,7 +184,7 @@ export function SalaryManager() {
           ))}
         </div>
 
-        <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-2">
+        <form onSubmit={handleAdd} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Month</label>
             <input
@@ -204,7 +204,7 @@ export function SalaryManager() {
               required
               value={gross}
               onChange={(e) => setGross(e.target.value)}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -215,7 +215,7 @@ export function SalaryManager() {
               step="0.01"
               value={pfEmployee}
               onChange={(e) => setPfEmployee(e.target.value)}
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -226,7 +226,7 @@ export function SalaryManager() {
               step="0.01"
               value={pfEmployer}
               onChange={(e) => setPfEmployer(e.target.value)}
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex items-center gap-1 pb-2">
@@ -248,7 +248,7 @@ export function SalaryManager() {
               step="0.01"
               value={tds}
               onChange={(e) => setTds(e.target.value)}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex items-center gap-1 pb-2">
@@ -270,7 +270,7 @@ export function SalaryManager() {
               step="0.01"
               value={deductions}
               onChange={(e) => setDeductions(e.target.value)}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -287,7 +287,7 @@ export function SalaryManager() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1"
           >
             Add
           </button>

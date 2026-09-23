@@ -513,7 +513,7 @@ export function FreelanceManager() {
               step="0.01"
               value={usdInrRate}
               onChange={(e) => setUsdInrRate(e.target.value)}
-              className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+              className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
             />
           </div>
           <button
@@ -587,9 +587,9 @@ export function FreelanceManager() {
 
             return (
               <div key={client.id} className="py-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{client.name}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">{client.name}</p>
                     <p className="text-xs text-slate-400">
                       {client.currency} · {formatMinor(client.hourlyRateMinor, client.currency)}/hr
                     </p>
@@ -609,7 +609,7 @@ export function FreelanceManager() {
 
                 <form
                   onSubmit={(e) => handleAddWorkLog(client, e)}
-                  className="mt-2 flex flex-wrap items-end gap-2 rounded-md bg-slate-50 p-2"
+                  className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end rounded-md bg-slate-50 p-2"
                 >
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-700">Epic</label>
@@ -657,7 +657,7 @@ export function FreelanceManager() {
                       required
                       value={logForm.billable}
                       onChange={(e) => setLogForm(client.id, { billable: e.target.value })}
-                      className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </div>
                   <div>
@@ -668,10 +668,10 @@ export function FreelanceManager() {
                       step="0.25"
                       value={logForm.nonBillable}
                       onChange={(e) => setLogForm(client.id, { nonBillable: e.target.value })}
-                      className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div className="col-span-2 sm:flex-1">
                     <label className="mb-1 block text-xs font-medium text-slate-700">Completed tasks</label>
                     <input
                       type="text"
@@ -680,7 +680,7 @@ export function FreelanceManager() {
                       className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div className="col-span-2 sm:flex-1">
                     <label className="mb-1 block text-xs font-medium text-slate-700">Notes</label>
                     <input
                       type="text"
@@ -728,13 +728,13 @@ export function FreelanceManager() {
                           step="0.1"
                           value={logForm.taxPercent}
                           onChange={(e) => setLogForm(client.id, { taxPercent: e.target.value })}
-                          className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                          className="w-full sm:w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
                         />
                       </div>
                     </>
                   )}
 
-                  <div className="flex flex-1 items-center justify-between gap-2">
+                  <div className="col-span-2 flex items-center justify-between gap-2 sm:flex-1">
                     <span className="text-xs font-medium text-slate-500">
                       Est. payment: <span className="text-slate-800">{formatPaiseAsInr(liveEstimate)}</span>
                     </span>
@@ -748,7 +748,7 @@ export function FreelanceManager() {
           })}
         </div>
 
-        <form onSubmit={handleAddClient} className="flex flex-wrap items-end gap-2">
+        <form onSubmit={handleAddClient} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Name</label>
             <input
@@ -779,10 +779,10 @@ export function FreelanceManager() {
               required
               value={clientRate}
               onChange={(e) => setClientRate(e.target.value)}
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
-          <div className="flex-1">
+          <div className="col-span-2 sm:flex-1">
             <label className="mb-1 block text-xs font-medium text-slate-700">Contract note</label>
             <input
               type="text"
@@ -832,7 +832,7 @@ export function FreelanceManager() {
         </button>
 
         {showInvoiceForm && canIssueInvoice && (
-          <form onSubmit={handleIssueInvoice} className="mt-3 flex flex-wrap items-end gap-2 rounded-md bg-slate-50 p-2">
+          <form onSubmit={handleIssueInvoice} className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end rounded-md bg-slate-50 p-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Payment platform</label>
               <select
@@ -857,7 +857,7 @@ export function FreelanceManager() {
                 step="0.01"
                 value={invoiceFees}
                 onChange={(e) => setInvoiceFees(e.target.value)}
-                className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                className="w-full sm:w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
               />
             </div>
             {clientById.get(selectedLogs[0].clientId)?.currency === "USD" && (
@@ -885,8 +885,8 @@ export function FreelanceManager() {
           {invoices.map((invoice) => {
             const client = clientById.get(invoice.clientId);
             return (
-              <div key={invoice.id} className="flex items-center justify-between py-2 text-sm">
-                <div>
+              <div key={invoice.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-800">
                     {client?.name ?? "Unknown client"} · {formatMinor(invoice.grossAmountMinor, invoice.currency)}
                   </p>
@@ -898,7 +898,7 @@ export function FreelanceManager() {
                       : ""}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       invoice.status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
@@ -938,14 +938,14 @@ export function FreelanceManager() {
         <div className="mb-4 divide-y divide-slate-100">
           {leadExpenses.length === 0 && <p className="py-4 text-sm text-slate-500">No lead expenses yet.</p>}
           {leadExpenses.map((expense) => (
-            <div key={expense.id} className="flex items-center justify-between py-2 text-sm">
-              <div>
+            <div key={expense.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+              <div className="min-w-0 flex-1">
                 <p className="text-slate-800">
                   {expense.date} · {LEAD_EXPENSE_CATEGORIES.find((c) => c.value === expense.category)?.label}
                 </p>
-                {expense.description && <p className="text-xs text-slate-400">{expense.description}</p>}
+                {expense.description && <p className="truncate text-xs text-slate-400">{expense.description}</p>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="font-semibold text-slate-800">{formatPaiseAsInr(expense.amountPaise)}</span>
                 <button
                   type="button"
@@ -959,7 +959,7 @@ export function FreelanceManager() {
           ))}
         </div>
 
-        <form onSubmit={handleAddLeadExpense} className="flex flex-wrap items-end gap-2">
+        <form onSubmit={handleAddLeadExpense} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Date</label>
             <input
@@ -979,7 +979,7 @@ export function FreelanceManager() {
               required
               value={leadAmount}
               onChange={(e) => setLeadAmount(e.target.value)}
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full sm:w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -996,7 +996,7 @@ export function FreelanceManager() {
               ))}
             </select>
           </div>
-          <div className="flex-1">
+          <div className="col-span-2 sm:flex-1">
             <label className="mb-1 block text-xs font-medium text-slate-700">Description</label>
             <input
               type="text"
