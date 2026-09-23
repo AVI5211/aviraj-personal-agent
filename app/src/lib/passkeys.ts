@@ -12,6 +12,10 @@ export interface PasskeyDoc {
 }
 
 export function requestOrigin(request: Request): { origin: string; rpID: string } {
-  const url = new URL(request.url);
-  return { origin: url.origin, rpID: url.hostname };
+  // Behind Cloud Run, request.url points at the container (0.0.0.0:8080).
+  // WebAuthn must instead be bound to the browser-visible HTTPS hostname.
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim();
+  const host = (forwardedHost || request.headers.get("host") || new URL(request.url).host).replace(/:\d+$/, "");
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  return { origin: `${forwardedProto || "https"}://${host}`, rpID: host };
 }
