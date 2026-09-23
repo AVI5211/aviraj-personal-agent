@@ -1,5 +1,5 @@
-const CACHE_NAME = "aviraj-money-desk-v1";
-const APP_ASSETS = ["/manifest.webmanifest", "/icon"];
+const CACHE_NAME = "aviraj-money-desk-v2";
+const APP_ASSETS = ["/manifest.webmanifest", "/icon?v=2"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS)));
