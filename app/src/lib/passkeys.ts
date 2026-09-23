@@ -1,14 +1,19 @@
-import { ObjectId } from "mongodb";
+import { Binary, ObjectId } from "mongodb";
 
 export interface PasskeyDoc {
   _id?: ObjectId;
   userId: ObjectId;
   credentialID: string;
-  publicKey: Buffer;
+  publicKey: Buffer | Binary;
   counter: number;
   transports?: string[];
   createdAt: Date;
   lastUsedAt?: Date;
+}
+
+export function publicKeyBytes(value: Buffer | Binary): Uint8Array<ArrayBuffer> {
+  const bytes = value instanceof Binary ? value.value() : value;
+  return new Uint8Array(Array.from(bytes));
 }
 
 export function requestOrigin(request: Request): { origin: string; rpID: string } {
