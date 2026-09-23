@@ -310,6 +310,20 @@ export const createLeadExpenseSchema = z.object({
   description: z.string().max(500).default(""),
 });
 
+export const importWorkLogRowSchema = z.object({
+  epicName: z.string().min(1).max(150),
+  description: z.string().max(500).default(""),
+  hours: z.number().positive(),
+  date: dateString,
+  notes: z.string().max(1000).default(""),
+});
+
+export const importWorkLogsSchema = z.object({
+  clientId: z.string().min(1),
+  dryRun: z.boolean().default(false),
+  rows: z.array(importWorkLogRowSchema).min(1).max(2000),
+});
+
 export const createEpicSchema = z.object({
   clientId: z.string().min(1),
   name: z.string().min(1).max(150),

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { formatPaiseAsInr } from "@/lib/money";
+import { interpretImportRows, parseDelimitedTextAuto, type ParsedImportRow } from "@/lib/freelance-import";
 import type {
   ClientApi,
   ClientCurrency,
@@ -110,6 +111,19 @@ export function FreelanceManager() {
     Record<string, { hours: string; platform: PaymentPlatform; feesMinor: string; taxPercent: string }>
   >({});
   const [quickInvoiceSubmitting, setQuickInvoiceSubmitting] = useState<string | null>(null);
+
+  // Bulk timesheet import: paste a TSV/CSV block (e.g. copied out of Excel) or upload a
+  // file, preview what's new vs. already recorded, then confirm. Only one client's
+  // import panel is open at a time.
+  const [importClientId, setImportClientId] = useState<string | null>(null);
+  const [importText, setImportText] = useState("");
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importParsing, setImportParsing] = useState(false);
+  const [importSubmitting, setImportSubmitting] = useState(false);
+  const [importRows, setImportRows] = useState<ParsedImportRow[]>([]);
+  const [importPreview, setImportPreview] = useState<(ParsedImportRow & { status: string })[] | null>(null);
+  const [importResult, setImportResult] = useState<{ workLogsCreated: number; epicsCreated: number } | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Lead expense form
   const [leadDate, setLeadDate] = useState("");
@@ -491,6 +505,127 @@ export function FreelanceManager() {
     refreshAfterMutation();
   }
 
+  function openImportPanel(clientId: string) {
+    setImportClientId(clientId);
+    setImportText("");
+    setImportFileName(null);
+    setImportRows([]);
+    setImportPreview(null);
+    setImportResult(null);
+    setError(null);
+  }
+
+  function closeImportPanel() {
+    setImportClientId(null);
+    setImportText("");
+    setImportFileName(null);
+    setImportRows([]);
+    setImportPreview(null);
+    setImportResult(null);
+    if (importFileInputRef.current) importFileInputRef.current.value = "";
+  }
+
+  async function handleImportFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImportFileName(file.name);
+    setImportPreview(null);
+    setImportResult(null);
+    setError(null);
+
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+    if (isExcel) {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: unknown[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: "" });
+      const asStrings = rows.map((row) => row.map((cell) => String(cell ?? "")));
+      const parsedRows = interpretImportRows(asStrings);
+      setImportRows(parsedRows);
+      setImportText("");
+      if (importClientId) await requestImportPreview(importClientId, parsedRows);
+    } else {
+      const text = await file.text();
+      setImportText(text);
+      const parsedRows = interpretImportRows(parseDelimitedTextAuto(text));
+      setImportRows(parsedRows);
+      if (importClientId) await requestImportPreview(importClientId, parsedRows);
+    }
+  }
+
+  async function handleParsePastedText() {
+    setError(null);
+    if (!importText.trim()) {
+      setError("Paste some timesheet data first");
+      return;
+    }
+    const parsedRows = interpretImportRows(parseDelimitedTextAuto(importText));
+    setImportRows(parsedRows);
+    if (importClientId) await requestImportPreview(importClientId, parsedRows);
+  }
+
+  async function requestImportPreview(clientId: string, rows: ParsedImportRow[]) {
+    if (rows.length === 0) {
+      setError("No recognizable rows found — make sure it includes an EPIC header row above the data");
+      return;
+    }
+    const datedRows = rows.filter((r): r is ParsedImportRow & { date: string } => r.date !== null);
+    if (datedRows.length === 0) {
+      setError("No rows had a recognizable date — fix the dates in the source and re-paste");
+      return;
+    }
+
+    setImportParsing(true);
+    setError(null);
+    const response = await fetch("/api/freelance/work-logs/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        dryRun: true,
+        rows: datedRows.map((r) => ({ epicName: r.epicName, description: r.description, hours: r.hours, date: r.date, notes: r.notes })),
+      }),
+    });
+    setImportParsing(false);
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setError(data?.error && typeof data.error === "string" ? data.error : "Could not preview the import");
+      return;
+    }
+    const data = await response.json();
+    const serverRows: (ParsedImportRow & { status: string })[] = data.rows;
+    let cursor = 0;
+    const merged = rows.map((row) =>
+      row.date === null ? { ...row, status: "needs_date" } : serverRows[cursor++]
+    );
+    setImportPreview(merged);
+  }
+
+  async function handleConfirmImport(clientId: string) {
+    const validRows = importRows.filter((r) => r.date !== null);
+    setImportSubmitting(true);
+    setError(null);
+    const response = await fetch("/api/freelance/work-logs/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        dryRun: false,
+        rows: validRows.map((r) => ({ epicName: r.epicName, description: r.description, hours: r.hours, date: r.date, notes: r.notes })),
+      }),
+    });
+    setImportSubmitting(false);
+    if (!response.ok) {
+      setError("Could not complete the import");
+      return;
+    }
+    const data = await response.json();
+    setImportResult({ workLogsCreated: data.workLogsCreated, epicsCreated: data.epicsCreated });
+    setImportPreview(null);
+    refreshAfterMutation();
+  }
+
   async function handleIssueInvoice(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -726,6 +861,15 @@ export function FreelanceManager() {
                       </span>
                     </span>
                   </button>
+                  {!isCollapsed && (
+                    <button
+                      type="button"
+                      onClick={() => (importClientId === client.id ? closeImportPanel() : openImportPanel(client.id))}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                    >
+                      {importClientId === client.id ? "Close Import" : "Import Timesheet"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleDeleteClient(client.id)}
@@ -734,6 +878,146 @@ export function FreelanceManager() {
                     Delete
                   </button>
                 </div>
+
+                {!isCollapsed && importClientId === client.id && (
+                  <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    {!importResult && (
+                      <>
+                        <p className="mb-2 text-xs text-slate-600">
+                          Paste an EPIC timesheet block (as copied from a spreadsheet) or upload a file. Rows are
+                          matched against what&apos;s already recorded per epic by date, so re-pasting the same
+                          sheet only ever adds what&apos;s new.
+                        </p>
+                        <textarea
+                          value={importText}
+                          onChange={(e) => setImportText(e.target.value)}
+                          placeholder="Paste tab-separated timesheet rows here…"
+                          rows={4}
+                          className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 font-mono text-xs"
+                        />
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleParsePastedText}
+                            disabled={importParsing}
+                            className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                          >
+                            {importParsing ? "Parsing…" : "Parse & Preview"}
+                          </button>
+                          <span className="text-xs text-slate-400">or</span>
+                          <input
+                            ref={importFileInputRef}
+                            type="file"
+                            accept=".csv,.tsv,.txt,.xlsx,.xls"
+                            onChange={handleImportFileChange}
+                            className="text-xs"
+                          />
+                          {importFileName && <span className="text-xs text-slate-500">{importFileName}</span>}
+                        </div>
+
+                        {importPreview && (
+                          <>
+                            <div className="mb-2 flex flex-wrap items-center gap-3 text-xs">
+                              <span className="font-medium text-emerald-700">
+                                {importPreview.filter((r) => r.status === "new").length} new
+                              </span>
+                              <span className="text-slate-500">
+                                {importPreview.filter((r) => r.status === "already_recorded").length} already recorded
+                              </span>
+                              {importPreview.some((r) => r.status === "needs_date") && (
+                                <span className="font-medium text-red-600">
+                                  {importPreview.filter((r) => r.status === "needs_date").length} need a fixable date
+                                  (excluded)
+                                </span>
+                              )}
+                            </div>
+                            <div className="mb-2 max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-white">
+                              <table className="w-full text-left text-xs">
+                                <thead className="sticky top-0 bg-slate-100 text-slate-500">
+                                  <tr>
+                                    <th className="px-2 py-1">Status</th>
+                                    <th className="px-2 py-1">Epic</th>
+                                    <th className="px-2 py-1">Date</th>
+                                    <th className="px-2 py-1 text-right">Hours</th>
+                                    <th className="px-2 py-1">Task</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {importPreview.map((row, i) => (
+                                    <tr key={i} className={row.status !== "new" ? "text-slate-400" : undefined}>
+                                      <td className="whitespace-nowrap px-2 py-1">
+                                        {row.status === "new" && (
+                                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-emerald-700">
+                                            New
+                                          </span>
+                                        )}
+                                        {row.status === "already_recorded" && (
+                                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5">Skip</span>
+                                        )}
+                                        {row.status === "needs_date" && (
+                                          <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-red-700">
+                                            Bad date
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="whitespace-nowrap px-2 py-1">{row.epicName}</td>
+                                      <td className="whitespace-nowrap px-2 py-1">{row.date ?? row.dateRaw}</td>
+                                      <td className="whitespace-nowrap px-2 py-1 text-right">{row.hours}h</td>
+                                      <td className="max-w-xs truncate px-2 py-1" title={row.description}>
+                                        {row.description}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmImport(client.id)}
+                                disabled={
+                                  importSubmitting || importPreview.filter((r) => r.status === "new").length === 0
+                                }
+                                className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                              >
+                                {importSubmitting
+                                  ? "Importing…"
+                                  : `Confirm Import (${importPreview.filter((r) => r.status === "new").length})`}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={closeImportPanel}
+                                className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+
+                    {importResult && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">
+                          Imported {importResult.workLogsCreated} new work log
+                          {importResult.workLogsCreated === 1 ? "" : "s"}
+                          {importResult.epicsCreated > 0
+                            ? ` and created ${importResult.epicsCreated} new epic${importResult.epicsCreated === 1 ? "" : "s"}`
+                            : ""}
+                          .
+                        </p>
+                        <button
+                          type="button"
+                          onClick={closeImportPanel}
+                          className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {!isCollapsed && (
                 <form
