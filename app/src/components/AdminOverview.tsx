@@ -57,7 +57,8 @@ export function AdminOverview() {
             <Card label="Monthly Income" value={overview.monthlyIncome} tone="positive" />
             <Card label="Monthly Expenses" value={overview.monthlyExpense} tone="negative" />
             <Card label="Cash & Bank" value={overview.cashAndBank} />
-            <Card label="Receivables" value={overview.receivables} />
+            <Card label="Freelance receivables" value={overview.receivables} />
+            <Card label="Money lent & refundable deposits" value={overview.personalReceivables} />
           </div>
 
           <Section title="Income & security deposits">
@@ -77,6 +78,7 @@ export function AdminOverview() {
             <Row label="Investments" value={overview.investmentsTotal} />
             <Row label="Provident fund" value={overview.pfTotal} />
             <Row label="Other assets" value={overview.otherAssetsTotal} />
+            <Row label="Money lent & refundable deposits" value={overview.personalReceivables} />
             <Row label="Outstanding liabilities" value={-overview.liabilitiesTotal} negative />
           </Section>
 

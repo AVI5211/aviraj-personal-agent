@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const db = await getDb();
   const rangeFilter = buildDateRangeFilter(range.from, range.to);
 
-  const [byModuleTypeCategory, accounts, salaryRecords, investments, activeLoans, issuedInvoices, paidInvoices] =
+  const [byModuleTypeCategory, accounts, salaryRecords, investments, activeLoans, issuedInvoices, paidInvoices, pendingPersonalReceivables] =
     await Promise.all([
       db
         .collection<TransactionDoc>("transactions")
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
             .find({ status: "paid", paidDate: { $gte: range.from, $lte: range.to } })
             .toArray()
         : db.collection<InvoiceDoc>("invoices").find({ status: "paid" }).toArray(),
+      db.collection("receivables").aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, total: { $sum: "$amountPaise" } } }]).toArray(),
     ]);
 
   let shopIncome = 0;
@@ -147,5 +148,6 @@ export async function GET(request: NextRequest) {
     },
     shopNetCashFlow: shopIncome - shopExpense,
     receivables,
+    personalReceivables: pendingPersonalReceivables[0]?.total ?? 0,
   });
 }

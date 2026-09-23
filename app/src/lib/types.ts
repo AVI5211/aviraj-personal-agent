@@ -285,4 +285,5 @@ export interface AdminOverviewResponse {
   };
   shopNetCashFlow: number;
   receivables: number;
+  personalReceivables: number;
 }
