@@ -254,7 +254,7 @@ export interface AdminOverviewResponse {
   monthlyExpense: number;
   incomeSources: {
     salary: number;
-    salaryCtc: number;
+    salaryInHand: number;
     shop: number;
     freelance: number;
     otherPersonal: number;

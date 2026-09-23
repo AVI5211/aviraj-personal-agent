@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
   let shopExpense = 0;
   let personalExpense = 0;
   let personalOtherIncome = 0;
-  let shopDrawIncome = 0;
 
   for (const row of byModuleTypeCategory) {
     if (row._id.module === "shop") {
@@ -80,7 +79,9 @@ export async function GET(request: NextRequest) {
       if (row._id.type === "expense") {
         personalExpense += row.total;
       } else if (row._id.category === SHOP_DRAW_CATEGORY) {
-        shopDrawIncome += row.total;
+        // Money already counted once as shop revenue above — skip it here so it
+        // isn't double-counted as "other personal income" once it's drawn out.
+        continue;
       } else {
         personalOtherIncome += row.total;
       }
@@ -89,14 +90,14 @@ export async function GET(request: NextRequest) {
 
   // Only records actually received count as income here — an "expected" future month
   // (e.g. a salary projection through the rest of the financial year) hasn't landed yet.
-  const salaryIncome = salaryRecords
-    .filter((record) => record.status === "received")
-    .reduce((sum, record) => sum + netPaiseFor(record), 0);
-  // Reference figure only — CTC includes employer PF and non-cash components (insurance,
-  // gym, etc.) that never land as income, so it is never added into monthlyIncome.
+  // The headline figure is CTC (what was actually earned, before PF/TDS deductions), since
+  // that's what shows up on Form 16 / ITR — in-hand is kept as a secondary reference only.
   const salaryCtc = salaryRecords
     .filter((record) => record.status === "received")
     .reduce((sum, record) => sum + ctcPaiseFor(record), 0);
+  const salaryInHand = salaryRecords
+    .filter((record) => record.status === "received")
+    .reduce((sum, record) => sum + netPaiseFor(record), 0);
   const freelanceIncome = paidInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
   const receivables = issuedInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
 
@@ -132,12 +133,12 @@ export async function GET(request: NextRequest) {
     pfTotal,
     otherAssetsTotal,
     liabilitiesTotal,
-    monthlyIncome: salaryIncome + shopDrawIncome + personalOtherIncome + freelanceIncome,
+    monthlyIncome: salaryCtc + shopIncome + personalOtherIncome + freelanceIncome,
     monthlyExpense: personalExpense,
     incomeSources: {
-      salary: salaryIncome,
-      salaryCtc,
-      shop: shopDrawIncome,
+      salary: salaryCtc,
+      salaryInHand,
+      shop: shopIncome,
       freelance: freelanceIncome,
       otherPersonal: personalOtherIncome,
     },

@@ -62,12 +62,12 @@ export function AdminOverview() {
 
           <Section title="Income sources">
             <Row
-              label="Perforce salary (in-hand)"
+              label="Perforce salary (CTC earned)"
               value={overview.incomeSources.salary}
-              note={`CTC: ${formatPaiseAsInr(overview.incomeSources.salaryCtc)}`}
+              note={`In-hand: ${formatPaiseAsInr(overview.incomeSources.salaryInHand)}`}
             />
             <Row label="Freelancing" value={overview.incomeSources.freelance} />
-            <Row label="Shop (drawn)" value={overview.incomeSources.shop} />
+            <Row label="Shop revenue" value={overview.incomeSources.shop} />
             <Row label="Other personal income" value={overview.incomeSources.otherPersonal} />
             <Row label="Total income (this period)" value={overview.monthlyIncome} bold />
           </Section>
