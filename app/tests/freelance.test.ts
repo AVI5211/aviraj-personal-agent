@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeGrossAmountMinor, computeInHandPaise, computeNetInrPaise } from "@/lib/freelance";
+import { allocateHoursFifo, computeGrossAmountMinor, computeInHandPaise, computeNetInrPaise } from "@/lib/freelance";
 
 describe("computeGrossAmountMinor", () => {
   it("sums billable hours across work logs and multiplies by the hourly rate", () => {
@@ -43,5 +43,48 @@ describe("computeInHandPaise", () => {
 
   it("returns the full net amount when no tax was paid", () => {
     expect(computeInHandPaise(10_000_00, 0)).toBe(10_000_00);
+  });
+});
+
+describe("allocateHoursFifo", () => {
+  const logs = [
+    { id: "a", billableHours: 10 },
+    { id: "b", billableHours: 8 },
+    { id: "c", billableHours: 6 },
+  ];
+
+  it("consumes whole entries exactly when the target lands on a boundary", () => {
+    const result = allocateHoursFifo(logs, 18);
+    expect(result.fullyConsumedIds).toEqual(["a", "b"]);
+    expect(result.partialSplit).toBeNull();
+    expect(result.invoicedHours).toBe(18);
+  });
+
+  it("splits the boundary entry when the target falls in the middle of it", () => {
+    const result = allocateHoursFifo(logs, 15);
+    expect(result.fullyConsumedIds).toEqual(["a"]);
+    expect(result.partialSplit).toEqual({ id: "b", paidHours: 5, leftoverHours: 3 });
+    expect(result.invoicedHours).toBe(15);
+  });
+
+  it("never goes negative — caps at the total available hours", () => {
+    const result = allocateHoursFifo(logs, 100);
+    expect(result.fullyConsumedIds).toEqual(["a", "b", "c"]);
+    expect(result.partialSplit).toBeNull();
+    expect(result.invoicedHours).toBe(24);
+  });
+
+  it("splits the very first entry when the target is smaller than it", () => {
+    const result = allocateHoursFifo(logs, 4);
+    expect(result.fullyConsumedIds).toEqual([]);
+    expect(result.partialSplit).toEqual({ id: "a", paidHours: 4, leftoverHours: 6 });
+    expect(result.invoicedHours).toBe(4);
+  });
+
+  it("returns nothing consumed for a zero target", () => {
+    const result = allocateHoursFifo(logs, 0);
+    expect(result.fullyConsumedIds).toEqual([]);
+    expect(result.partialSplit).toBeNull();
+    expect(result.invoicedHours).toBe(0);
   });
 });

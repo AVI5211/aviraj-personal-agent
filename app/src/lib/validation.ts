@@ -289,6 +289,15 @@ export const updateInvoiceSchema = z.object({
   paidDate: dateString,
 });
 
+export const createQuickInvoiceSchema = z.object({
+  clientId: z.string().min(1),
+  hours: z.number().positive(),
+  paymentPlatform: z.enum(PAYMENT_PLATFORMS).default("other"),
+  feesMinor: z.number().int().min(0).default(0),
+  exchangeRateToInr: z.number().positive(),
+  taxPercent: z.number().min(0).max(100).default(0),
+});
+
 export const listInvoicesQuerySchema = z.object({
   clientId: z.string().optional(),
   status: z.enum(INVOICE_STATUSES).optional(),

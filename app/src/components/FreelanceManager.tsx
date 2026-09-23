@@ -104,6 +104,13 @@ export function FreelanceManager() {
   const [invoicePlatform, setInvoicePlatform] = useState<PaymentPlatform>("upwork");
   const [invoiceFees, setInvoiceFees] = useState("0");
 
+  // Quick invoice: pay a flat number of hours per client regardless of which
+  // epics/entries they come from, keyed by clientId.
+  const [quickInvoiceForms, setQuickInvoiceForms] = useState<
+    Record<string, { hours: string; platform: PaymentPlatform; feesMinor: string; taxPercent: string }>
+  >({});
+  const [quickInvoiceSubmitting, setQuickInvoiceSubmitting] = useState<string | null>(null);
+
   // Lead expense form
   const [leadDate, setLeadDate] = useState("");
   const [leadAmount, setLeadAmount] = useState("");
@@ -424,6 +431,65 @@ export function FreelanceManager() {
   const selectedLogs = workLogs.filter((log) => selectedLogIds.has(log.id));
   const selectedClientIds = new Set(selectedLogs.map((log) => log.clientId));
   const canIssueInvoice = selectedLogs.length > 0 && selectedClientIds.size === 1;
+
+  function getQuickInvoiceForm(clientId: string) {
+    return quickInvoiceForms[clientId] ?? { hours: "", platform: "upwork" as PaymentPlatform, feesMinor: "0", taxPercent: "0" };
+  }
+
+  function setQuickInvoiceForm(clientId: string, patch: Partial<ReturnType<typeof getQuickInvoiceForm>>) {
+    setQuickInvoiceForms((prev) => ({ ...prev, [clientId]: { ...getQuickInvoiceForm(clientId), ...patch } }));
+  }
+
+  async function handleQuickInvoice(client: ClientApi, event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    const form = getQuickInvoiceForm(client.id);
+    const hours = Number(form.hours);
+    const fees = Number(form.feesMinor || "0");
+    const taxPercent = Number(form.taxPercent || "0");
+
+    if (!Number.isFinite(hours) || hours <= 0) {
+      setError("Enter a valid number of hours to invoice");
+      return;
+    }
+    if (!Number.isFinite(fees) || fees < 0) {
+      setError("Enter a valid fee amount");
+      return;
+    }
+    if (!Number.isFinite(taxPercent) || taxPercent < 0 || taxPercent > 100) {
+      setError("Enter a valid tax percentage (0-100)");
+      return;
+    }
+
+    setQuickInvoiceSubmitting(client.id);
+    const exchangeRateToInr = client.currency === "INR" ? 1 : Number(usdInrRate) || 1;
+    const response = await fetch("/api/freelance/quick-invoice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId: client.id,
+        hours,
+        paymentPlatform: form.platform,
+        feesMinor: Math.round(fees * 100),
+        exchangeRateToInr,
+        taxPercent,
+      }),
+    });
+    setQuickInvoiceSubmitting(null);
+
+    if (!response.ok) {
+      setError("Could not create the quick invoice");
+      return;
+    }
+    const data = await response.json();
+    if (data.capped) {
+      setError(
+        `Only ${data.invoicedHours}h of unbilled work was available for this client — invoiced that instead of ${data.requestedHours}h.`
+      );
+    }
+    setQuickInvoiceForms((prev) => ({ ...prev, [client.id]: { hours: "", platform: form.platform, feesMinor: "0", taxPercent: "0" } }));
+    refreshAfterMutation();
+  }
 
   async function handleIssueInvoice(event: FormEvent) {
     event.preventDefault();
@@ -871,14 +937,89 @@ export function FreelanceManager() {
           const client = clientById.get(clientId);
           const allSelected = logs.every((log) => selectedLogIds.has(log.id));
           const someSelected = logs.some((log) => selectedLogIds.has(log.id));
+          const quickForm = getQuickInvoiceForm(clientId);
+          const totalHoursForClient = logs.reduce((s, l) => s + l.billableHours, 0);
           return (
             <div key={clientId} className="mb-4 overflow-hidden rounded-lg border border-slate-200">
-              <div className="flex items-center justify-between bg-slate-50 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2">
                 <span className="text-sm font-semibold text-slate-700">{client?.name ?? "Unknown client"}</span>
                 <span className="text-xs text-slate-500">
-                  {logs.reduce((s, l) => s + l.billableHours, 0)}h across {logs.length} entries
+                  {totalHoursForClient}h across {logs.length} entries
                 </span>
               </div>
+
+              {client && (
+                <form
+                  onSubmit={(e) => handleQuickInvoice(client, e)}
+                  className="flex flex-wrap items-end gap-2 border-b border-slate-200 bg-amber-50 px-3 py-2"
+                >
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Quick invoice hours</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.25"
+                      max={totalHoursForClient}
+                      required
+                      value={quickForm.hours}
+                      onChange={(e) => setQuickInvoiceForm(clientId, { hours: e.target.value })}
+                      placeholder="e.g. 100"
+                      className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Platform</label>
+                    <select
+                      value={quickForm.platform}
+                      onChange={(e) => setQuickInvoiceForm(clientId, { platform: e.target.value as PaymentPlatform })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    >
+                      {PAYMENT_PLATFORMS.map((p) => (
+                        <option key={p.value} value={p.value}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">
+                      Fee ({client.currency})
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={quickForm.feesMinor}
+                      onChange={(e) => setQuickInvoiceForm(clientId, { feesMinor: e.target.value })}
+                      className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Tax %</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={quickForm.taxPercent}
+                      onChange={(e) => setQuickInvoiceForm(clientId, { taxPercent: e.target.value })}
+                      className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={quickInvoiceSubmitting === clientId}
+                    className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    {quickInvoiceSubmitting === clientId ? "Invoicing..." : "Invoice & Mark Paid"}
+                  </button>
+                  <p className="w-full text-xs text-slate-500">
+                    Takes the oldest unbilled hours first, regardless of epic. If it lands mid-entry, that entry is
+                    split — the rest stays unbilled, marked &ldquo;partially billed&rdquo; in its notes.
+                  </p>
+                </form>
+              )}
+
               <div className="max-h-96 overflow-y-auto overflow-x-auto">
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                   <thead className="sticky top-0 z-10 bg-white text-xs uppercase tracking-wide text-slate-500">

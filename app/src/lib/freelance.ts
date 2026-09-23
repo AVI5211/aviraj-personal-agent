@@ -176,3 +176,60 @@ export function computeNetInrPaise(
 export function computeInHandPaise(netInrPaise: number, taxPaidPaise: number): number {
   return netInrPaise - taxPaidPaise;
 }
+
+function roundHours(hours: number): number {
+  return Math.round(hours * 100) / 100;
+}
+
+export interface AllocatableLog {
+  id: string;
+  billableHours: number;
+}
+
+export interface PartialSplit {
+  id: string;
+  paidHours: number;
+  leftoverHours: number;
+}
+
+export interface HourAllocation {
+  /** Log IDs consumed in full by this allocation. */
+  fullyConsumedIds: string[];
+  /** The one entry straddling the boundary, if any, split into a paid part and a leftover part. */
+  partialSplit: PartialSplit | null;
+  /** Hours actually allocated — equals targetHours unless the logs didn't have enough unbilled hours. */
+  invoicedHours: number;
+}
+
+/**
+ * Allocates a flat number of hours against a list of unbilled work-log entries,
+ * oldest first, regardless of which epic each entry belongs to. Entries that fit
+ * entirely within the remaining target are consumed whole; the one entry that
+ * would overshoot the target is split into a paid portion and a leftover portion
+ * so the pool never goes negative and no epic/entry is invoiced past its own hours.
+ */
+export function allocateHoursFifo(logs: AllocatableLog[], targetHours: number): HourAllocation {
+  const fullyConsumedIds: string[] = [];
+  let partialSplit: PartialSplit | null = null;
+  let remaining = roundHours(targetHours);
+
+  for (const log of logs) {
+    if (remaining <= 1e-9) break;
+
+    if (log.billableHours <= remaining + 1e-9) {
+      fullyConsumedIds.push(log.id);
+      remaining = roundHours(remaining - log.billableHours);
+    } else {
+      const paidHours = roundHours(remaining);
+      const leftoverHours = roundHours(log.billableHours - paidHours);
+      partialSplit = { id: log.id, paidHours, leftoverHours };
+      remaining = 0;
+    }
+  }
+
+  return {
+    fullyConsumedIds,
+    partialSplit,
+    invoicedHours: roundHours(targetHours - remaining),
+  };
+}
