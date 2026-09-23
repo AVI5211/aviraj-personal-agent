@@ -33,6 +33,7 @@ export function NavBar() {
       const credential = await startRegistration({ optionsJSON: options });
       const verifyResponse = await fetch("/api/auth/passkey/register/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credential) });
       if (!verifyResponse.ok) throw new Error((await verifyResponse.json()).error);
+      localStorage.setItem("moneyDeskBiometricLock", "enabled");
       window.alert("Fingerprint unlock is enabled on this device.");
     } catch (error) { window.alert(error instanceof Error ? error.message : "Fingerprint setup was cancelled."); }
   }
