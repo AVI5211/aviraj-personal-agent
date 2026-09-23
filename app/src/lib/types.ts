@@ -65,6 +65,68 @@ export interface SalaryRecordApi {
   updatedAt: string;
 }
 
+export type ClientCurrency = "USD" | "INR";
+export type InvoiceStatus = "issued" | "paid";
+export type LeadExpenseCategory = "upwork_connects" | "subscription" | "other";
+
+export interface ClientApi {
+  id: string;
+  name: string;
+  currency: ClientCurrency;
+  hourlyRateMinor: number;
+  contractNote: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkLogApi {
+  id: string;
+  clientId: string;
+  date: string;
+  billableHours: number;
+  nonBillableHours: number;
+  description: string;
+  invoiced: boolean;
+  invoiceId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceApi {
+  id: string;
+  clientId: string;
+  issueDate: string;
+  workLogIds: string[];
+  hours: number;
+  currency: ClientCurrency;
+  grossAmountMinor: number;
+  feesMinor: number;
+  exchangeRateToInr: number;
+  netInrPaise: number;
+  status: InvoiceStatus;
+  paidDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeadExpenseApi {
+  id: string;
+  date: string;
+  amountPaise: number;
+  category: LeadExpenseCategory;
+  description: string;
+  createdAt: string;
+}
+
+export interface FreelanceSummaryResponse {
+  range: { from: string | null; to: string | null };
+  receivedPaise: number;
+  pendingPaise: number;
+  unbilledHours: number;
+  unbilledAmountEstimatePaise: number;
+  leadExpensesPaise: number;
+}
+
 export interface AdminOverviewResponse {
   range: { from: string | null; to: string | null };
   netWorth: number;
