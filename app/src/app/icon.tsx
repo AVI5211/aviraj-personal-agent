@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import avatar from "../../public/aviraj-avatar.png";
 
 export const size = {
   width: 512,
@@ -7,11 +8,7 @@ export const size = {
 
 export const contentType = "image/png";
 
-export default async function Icon() {
-  const avatar = await fetch(new URL("../../public/aviraj-avatar.png", import.meta.url)).then(
-    (response) => response.arrayBuffer(),
-  );
-
+export default function Icon() {
   return new ImageResponse(
     (
       <div
@@ -27,7 +24,7 @@ export default async function Icon() {
       >
         <img
           alt="Aviraj"
-          src={avatar as unknown as string}
+          src={avatar.src}
           style={{ height: "100%", objectFit: "cover", width: "100%" }}
         />
       </div>
