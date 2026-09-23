@@ -65,6 +65,37 @@ export interface SalaryRecordApi {
   updatedAt: string;
 }
 
+export type InvestmentHoldingType = "equity" | "mutual_fund" | "fixed_deposit" | "savings" | "other";
+
+export interface InvestmentApi {
+  id: string;
+  name: string;
+  holdingType: InvestmentHoldingType;
+  currentValuePaise: number;
+  investedValuePaise: number | null;
+  valuationDate: string;
+  maturityDate: string | null;
+  interestRateAnnualBps: number | null;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvestmentValuationApi {
+  id: string;
+  investmentId: string;
+  valuationDate: string;
+  valuePaise: number;
+  createdAt: string;
+}
+
+export interface InvestmentSummaryResponse {
+  totalCurrentValuePaise: number;
+  totalInvestedValuePaise: number;
+  gainLossPaise: number | null;
+  byType: Record<InvestmentHoldingType, number>;
+}
+
 export interface AdminOverviewResponse {
   range: { from: string | null; to: string | null };
   netWorth: number;

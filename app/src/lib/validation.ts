@@ -124,3 +124,29 @@ export const updateSalaryRecordSchema = z
     note: z.string().max(300).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
+
+export const investmentHoldingTypes = ["equity", "mutual_fund", "fixed_deposit", "savings", "other"] as const;
+
+export const createInvestmentSchema = z.object({
+  name: z.string().min(1).max(150),
+  holdingType: z.enum(investmentHoldingTypes),
+  currentValuePaise: z.number().int().min(0),
+  investedValuePaise: z.number().int().min(0).nullable().default(null),
+  valuationDate: dateString,
+  maturityDate: dateString.nullable().default(null),
+  interestRateAnnualBps: z.number().int().min(0).max(100_000).nullable().default(null),
+  note: z.string().max(300).default(""),
+});
+
+export const updateInvestmentSchema = z
+  .object({
+    name: z.string().min(1).max(150).optional(),
+    holdingType: z.enum(investmentHoldingTypes).optional(),
+    currentValuePaise: z.number().int().min(0).optional(),
+    investedValuePaise: z.number().int().min(0).nullable().optional(),
+    valuationDate: dateString.optional(),
+    maturityDate: dateString.nullable().optional(),
+    interestRateAnnualBps: z.number().int().min(0).max(100_000).nullable().optional(),
+    note: z.string().max(300).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
