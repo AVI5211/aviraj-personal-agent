@@ -12,3 +12,4 @@ app/.env*
 *.tsbuildinfo
 
 .claude/
+.firebase/
