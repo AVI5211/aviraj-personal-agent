@@ -79,8 +79,11 @@ export async function GET(request: NextRequest) {
       else shopExpense += row.total;
     } else {
       if (row._id.type === "expense") {
-        personalExpense += row.total;
-        if (row._id.category === "security_deposit") securityDepositsGiven += row.total;
+        if (["security_deposit", "money_lent"].includes(row._id.category)) {
+          securityDepositsGiven += row.total;
+        } else {
+          personalExpense += row.total;
+        }
       } else if (row._id.category === SHOP_DRAW_CATEGORY) {
         // Money already counted once as shop revenue above — skip it here so it
         // isn't double-counted as "other personal income" once it's drawn out.

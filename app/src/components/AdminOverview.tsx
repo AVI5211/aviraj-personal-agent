@@ -69,7 +69,7 @@ export function AdminOverview() {
             />
             <Row label="Freelancing" value={overview.incomeSources.freelance} />
             <Row label="Shop revenue" value={overview.incomeSources.shop} />
-            <Row label="Security deposits given" value={overview.incomeSources.securityDepositsGiven} negative />
+            <Row label="Money lent / deposits recorded" value={overview.incomeSources.securityDepositsGiven} />
             <Row label="Total income (this period)" value={overview.monthlyIncome} bold />
           </Section>
 
