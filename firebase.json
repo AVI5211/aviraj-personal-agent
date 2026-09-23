@@ -1,0 +1,19 @@
+{
+  "hosting": {
+    "public": "app/public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "aviraj-money-desk",
+          "region": "asia-south1"
+        }
+      }
+    ]
+  }
+}
