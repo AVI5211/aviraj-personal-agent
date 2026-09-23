@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { ensureSeeded } from "@/lib/seed";
 import { periodQuerySchema, SHOP_DRAW_CATEGORY } from "@/lib/validation";
-import { resolvePeriod } from "@/lib/dates";
+import { resolvePeriod, startOfYear, todayInShopTz } from "@/lib/dates";
 import { buildDateRangeFilter, type TransactionDoc } from "@/lib/transactions";
 import { isLiability, type AccountDoc } from "@/lib/accounts";
 import { ctcPaiseFor, netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
@@ -42,13 +42,30 @@ export async function GET(request: NextRequest) {
 
   const db = await getDb();
   const rangeFilter = buildDateRangeFilter(range.from, range.to);
+  // This is deliberately independent from the overview filter: it is the
+  // calendar-year, gross earning total shown next to net worth.
+  const earnedToDate = todayInShopTz();
+  const earnedFromDate = startOfYear(earnedToDate);
+  const earnedRangeFilter = buildDateRangeFilter(earnedFromDate, earnedToDate);
 
-  const [byModuleTypeCategory, accounts, salaryRecords, investments, activeLoans, issuedInvoices, paidInvoices, pendingPersonalReceivables] =
+  const [byModuleTypeCategory, earnedByModuleTypeCategory, accounts, salaryRecords, earnedSalaryRecords, investments, activeLoans, issuedInvoices, paidInvoices, earnedPaidInvoices, pendingPersonalReceivables] =
     await Promise.all([
       db
         .collection<TransactionDoc>("transactions")
         .aggregate<TypeGroupResult>([
           { $match: rangeFilter },
+          {
+            $group: {
+              _id: { module: "$module", type: "$type", category: "$category" },
+              total: { $sum: "$amountPaise" },
+            },
+          },
+        ])
+        .toArray(),
+      db
+        .collection<TransactionDoc>("transactions")
+        .aggregate<TypeGroupResult>([
+          { $match: earnedRangeFilter },
           {
             $group: {
               _id: { module: "$module", type: "$type", category: "$category" },
@@ -64,6 +81,10 @@ export async function GET(request: NextRequest) {
             .find({ month: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } })
             .toArray()
         : db.collection<SalaryRecordDoc>("salary_records").find({}).toArray(),
+      db
+        .collection<SalaryRecordDoc>("salary_records")
+        .find({ month: { $gte: earnedFromDate.slice(0, 7), $lte: earnedToDate.slice(0, 7) } })
+        .toArray(),
       db.collection<InvestmentDoc>("investments").find({}).toArray(),
       db.collection<LoanDoc>("loans").find({ status: "active" }).toArray(),
       db.collection<InvoiceDoc>("invoices").find({ status: "issued" }).toArray(),
@@ -73,6 +94,10 @@ export async function GET(request: NextRequest) {
             .find({ status: "paid", paidDate: { $gte: range.from, $lte: range.to } })
             .toArray()
         : db.collection<InvoiceDoc>("invoices").find({ status: "paid" }).toArray(),
+      db
+        .collection<InvoiceDoc>("invoices")
+        .find({ status: "paid", paidDate: { $gte: earnedFromDate, $lte: earnedToDate } })
+        .toArray(),
       db.collection("receivables").aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, total: { $sum: "$amountPaise" } } }]).toArray(),
     ]);
 
@@ -116,6 +141,26 @@ export async function GET(request: NextRequest) {
   const freelanceIncome = paidInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
   const receivables = issuedInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
 
+  let earnedShopIncome = 0;
+  let earnedPersonalIncome = 0;
+  for (const row of earnedByModuleTypeCategory) {
+    if (row._id.type !== "income") continue;
+    if (row._id.module === "shop") {
+      earnedShopIncome += row.total;
+    } else if (row._id.category !== SHOP_DRAW_CATEGORY && row._id.category !== "money_return") {
+      // A returned loan/deposit is the return of an asset, not fresh income.
+      earnedPersonalIncome += row.total;
+    }
+  }
+  const earnedSalaryCtc = earnedSalaryRecords
+    .filter((record) => record.status === "received")
+    .reduce((sum, record) => sum + ctcPaiseFor(record), 0);
+  const earnedFreelanceGross = earnedPaidInvoices.reduce(
+    (sum, invoice) => sum + Math.round(invoice.grossAmountMinor * invoice.exchangeRateToInr),
+    0
+  );
+  const totalMoneyEarned = earnedSalaryCtc + earnedShopIncome + earnedPersonalIncome + earnedFreelanceGross;
+
   // Detailed investment holdings (the `investments` collection) supersede the coarse
   // `accounts` type:"investment" balance for net worth, so an account isn't double-counted
   // once its holdings have been migrated into the investments module.
@@ -147,6 +192,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     range,
     netWorth,
+    totalMoneyEarned,
     cashAndBank,
     investmentsTotal,
     pfTotal,

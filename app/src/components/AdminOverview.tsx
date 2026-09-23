@@ -45,13 +45,22 @@ export function AdminOverview() {
 
       {overview && (
         <>
-          <div className="relative mb-6 overflow-hidden rounded-2xl border-2 border-emerald-300 bg-white p-5 shadow-sm">
-            <LeafCelebration />
-            <p className="relative text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">Total net worth</p>
-            <p className={`relative mt-1 text-3xl font-bold tracking-tight ${overview.netWorth >= 0 ? "text-slate-950" : "text-red-600"}`}>
-              {formatPaiseAsInr(overview.netWorth)}
-            </p>
-            <p className="relative mt-1 text-xs text-slate-500">Assets minus outstanding liabilities</p>
+          <div className="mb-6 grid gap-3 sm:grid-cols-2">
+            <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-300 bg-white p-5 shadow-sm">
+              <LeafCelebration />
+              <p className="relative text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">Total net worth</p>
+              <p className={`relative mt-1 text-3xl font-bold tracking-tight ${overview.netWorth >= 0 ? "text-slate-950" : "text-red-600"}`}>
+                {formatPaiseAsInr(overview.netWorth)}
+              </p>
+              <p className="relative mt-1 text-xs text-slate-500">Assets minus outstanding liabilities</p>
+            </div>
+            <div className="rounded-2xl border-2 border-sky-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-sky-700">Total money earned</p>
+              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+                {formatPaiseAsInr(overview.totalMoneyEarned)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Jan 1–today · before tax &amp; service fees</p>
+            </div>
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">

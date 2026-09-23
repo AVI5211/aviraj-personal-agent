@@ -269,6 +269,8 @@ export interface FreelanceSummaryResponse {
 export interface AdminOverviewResponse {
   range: { from: string | null; to: string | null };
   netWorth: number;
+  /** Calendar-year gross earnings, intentionally not affected by the overview filter. */
+  totalMoneyEarned: number;
   cashAndBank: number;
   investmentsTotal: number;
   pfTotal: number;
