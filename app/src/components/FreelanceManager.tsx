@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { PeriodFilter } from "@/components/PeriodFilter";
+import { todayInShopTz } from "@/lib/dates";
 import { formatPaiseAsInr } from "@/lib/money";
 import { interpretImportRows, parseDelimitedTextAuto, type ParsedImportRow } from "@/lib/freelance-import";
 import type {
@@ -51,7 +52,7 @@ interface LogFormState {
 
 function emptyLogForm(defaultEpicId: string): LogFormState {
   return {
-    date: "",
+    date: todayInShopTz(),
     billable: "",
     nonBillable: "0",
     description: "",
@@ -116,6 +117,7 @@ export function FreelanceManager() {
   // file, preview what's new vs. already recorded, then confirm. Only one client's
   // import panel is open at a time.
   const [importClientId, setImportClientId] = useState<string | null>(null);
+  const [importEpicName, setImportEpicName] = useState("");
   const [importText, setImportText] = useState("");
   const [importFileName, setImportFileName] = useState<string | null>(null);
   const [importParsing, setImportParsing] = useState(false);
@@ -326,7 +328,7 @@ export function FreelanceManager() {
     const nonBillable = Number(form.nonBillable || "0");
     const taxPercent = Number(form.taxPercent || "0");
 
-    if (!form.date || !Number.isFinite(billable) || billable < 0) {
+    if (!form.date || !Number.isFinite(billable) || billable < 0 || !Number.isFinite(nonBillable) || nonBillable < 0) {
       setError("Enter a valid date and billable hours");
       return;
     }
@@ -369,7 +371,7 @@ export function FreelanceManager() {
       }),
     });
     if (!logResponse.ok) {
-      setError("Could not log work");
+      setError(await getApiError(logResponse, "Could not log work"));
       return;
     }
     const log = await logResponse.json();
@@ -519,6 +521,7 @@ export function FreelanceManager() {
 
   function openImportPanel(clientId: string) {
     setImportClientId(clientId);
+    setImportEpicName(epics.find((epic) => epic.id === defaultEpicFor(clientId))?.name ?? "");
     setImportText("");
     setImportFileName(null);
     setImportRows([]);
@@ -529,6 +532,7 @@ export function FreelanceManager() {
 
   function closeImportPanel() {
     setImportClientId(null);
+    setImportEpicName("");
     setImportText("");
     setImportFileName(null);
     setImportRows([]);
@@ -553,14 +557,14 @@ export function FreelanceManager() {
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: unknown[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: "" });
       const asStrings = rows.map((row) => row.map((cell) => String(cell ?? "")));
-      const parsedRows = interpretImportRows(asStrings);
+      const parsedRows = applySelectedEpic(interpretImportRows(asStrings));
       setImportRows(parsedRows);
       setImportText("");
       if (importClientId) await requestImportPreview(importClientId, parsedRows);
     } else {
       const text = await file.text();
       setImportText(text);
-      const parsedRows = interpretImportRows(parseDelimitedTextAuto(text));
+      const parsedRows = applySelectedEpic(interpretImportRows(parseDelimitedTextAuto(text)));
       setImportRows(parsedRows);
       if (importClientId) await requestImportPreview(importClientId, parsedRows);
     }
@@ -572,14 +576,34 @@ export function FreelanceManager() {
       setError("Paste some timesheet data first");
       return;
     }
-    const parsedRows = interpretImportRows(parseDelimitedTextAuto(importText));
+    const parsedRows = applySelectedEpic(interpretImportRows(parseDelimitedTextAuto(importText)));
     setImportRows(parsedRows);
     if (importClientId) await requestImportPreview(importClientId, parsedRows);
+  }
+
+  function applySelectedEpic(rows: ParsedImportRow[]): ParsedImportRow[] {
+    const selectedEpic = importEpicName.trim();
+    return rows.map((row) => (row.epicName ? row : { ...row, epicName: selectedEpic }));
+  }
+
+  async function getApiError(response: Response, fallback: string): Promise<string> {
+    const data = await response.json().catch(() => null);
+    if (typeof data?.error === "string") return data.error;
+    const fieldErrors = data?.error?.fieldErrors;
+    if (fieldErrors && typeof fieldErrors === "object") {
+      const message = Object.values(fieldErrors).flat().find((value): value is string => typeof value === "string");
+      if (message) return message;
+    }
+    return fallback;
   }
 
   async function requestImportPreview(clientId: string, rows: ParsedImportRow[]) {
     if (rows.length === 0) {
       setError("No recognizable rows found — make sure it includes an EPIC header row above the data");
+      return;
+    }
+    if (rows.some((row) => !row.epicName.trim())) {
+      setError("Choose the epic that these imported hours belong to");
       return;
     }
     const datedRows = rows.filter((r): r is ParsedImportRow & { date: string } => r.date !== null);
@@ -601,8 +625,7 @@ export function FreelanceManager() {
     });
     setImportParsing(false);
     if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      setError(data?.error && typeof data.error === "string" ? data.error : "Could not preview the import");
+      setError(await getApiError(response, "Could not preview the import"));
       return;
     }
     const data = await response.json();
@@ -629,7 +652,7 @@ export function FreelanceManager() {
     });
     setImportSubmitting(false);
     if (!response.ok) {
-      setError("Could not complete the import");
+      setError(await getApiError(response, "Could not complete the import"));
       return;
     }
     const data = await response.json();
@@ -910,6 +933,24 @@ export function FreelanceManager() {
                           matched against what&apos;s already recorded per epic by date, so re-pasting the same
                           sheet only ever adds what&apos;s new.
                         </p>
+                        <div className="mb-2">
+                          <label className="mb-1 block text-xs font-medium text-slate-700">Epic for pasted rows</label>
+                          <input
+                            list={`import-epics-${client.id}`}
+                            value={importEpicName}
+                            onChange={(e) => setImportEpicName(e.target.value)}
+                            placeholder="Choose or type an epic name"
+                            className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                          <datalist id={`import-epics-${client.id}`}>
+                            {clientEpics.map((epic) => (
+                              <option key={epic.id} value={epic.name} />
+                            ))}
+                          </datalist>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            For simple rows like task, hours, date and notes, this is where the hours will be logged.
+                          </p>
+                        </div>
                         <textarea
                           value={importText}
                           onChange={(e) => setImportText(e.target.value)}

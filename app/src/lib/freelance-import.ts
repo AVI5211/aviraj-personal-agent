@@ -147,5 +147,26 @@ export function interpretImportRows(rows: string[][]): ParsedImportRow[] {
     });
   }
 
+  // Also accept a simple row-based export: optional serial number, task, hours,
+  // date, notes. The caller supplies the target epic for these rows.
+  if (results.length === 0) {
+    for (const cols of rows) {
+      const offset = /^\s*\d+\)?\s*$/.test(cols[0] ?? "") ? 1 : 0;
+      if (cols.length < offset + 3) continue;
+      const hours = parseFloat((cols[offset + 1] ?? "").trim());
+      const dateRaw = (cols[offset + 2] ?? "").trim();
+      if (!Number.isFinite(hours) || hours <= 0 || !dateRaw) continue;
+
+      results.push({
+        epicName: "",
+        description: stripSurroundingQuotes(cols[offset] ?? "").slice(0, 500),
+        hours,
+        dateRaw,
+        date: parseDateFlexible(dateRaw),
+        notes: (cols[offset + 3] ?? "").trim().slice(0, 1000),
+      });
+    }
+  }
+
   return results;
 }
