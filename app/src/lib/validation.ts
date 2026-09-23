@@ -224,6 +224,13 @@ export const generateLoanPaymentsSchema = z.object({
   months: z.number().int().min(1).max(60).default(12),
 });
 
+export const createRecurringExpenseSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  monthlyAmountPaise: z.number().int().positive(),
+  dueDayOfMonth: z.number().int().min(1).max(31),
+  startDate: dateString.nullable().default(null),
+});
+
 // --- Freelance module ---
 
 export const CLIENT_CURRENCIES = ["USD", "INR"] as const;

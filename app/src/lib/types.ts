@@ -162,6 +162,16 @@ export interface LoanDetailResponse {
   payments: LoanPaymentApi[];
 }
 
+export interface RecurringExpenseApi {
+  id: string;
+  name: string;
+  monthlyAmountPaise: number;
+  dueDayOfMonth: number;
+  startDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ClientCurrency = "USD" | "INR";
 export type InvoiceStatus = "issued" | "paid";
 export type LeadExpenseCategory = "upwork_connects" | "subscription" | "other";

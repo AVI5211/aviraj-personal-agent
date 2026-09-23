@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import type { LoanApi, LoanPaymentApi } from "@/lib/types";
+import type { LoanApi, LoanPaymentApi, RecurringExpenseApi } from "@/lib/types";
 import { formatPaiseAsInr } from "@/lib/money";
 
 function toPaise(value: string): number | null {
@@ -12,6 +12,7 @@ function toPaise(value: string): number | null {
 
 export function LoansManager() {
   const [loans, setLoans] = useState<LoanApi[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseApi[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -22,6 +23,11 @@ export function LoansManager() {
   const [startDate, setStartDate] = useState("");
   const [interestRate, setInterestRate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [expenseName, setExpenseName] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDueDay, setExpenseDueDay] = useState("5");
+  const [expenseStartDate, setExpenseStartDate] = useState("");
+  const [expenseSubmitting, setExpenseSubmitting] = useState(false);
 
   async function fetchLoans() {
     const response = await fetch("/api/loans");
@@ -31,8 +37,17 @@ export function LoansManager() {
     }
   }
 
+  async function fetchRecurringExpenses() {
+    const response = await fetch("/api/recurring-expenses");
+    if (response.ok) {
+      const data = await response.json();
+      setRecurringExpenses(data.recurringExpenses);
+    }
+  }
+
   useEffect(() => {
     fetchLoans();
+    fetchRecurringExpenses();
   }, []);
 
   async function handleAdd(event: FormEvent) {
@@ -79,6 +94,50 @@ export function LoansManager() {
     setStartDate("");
     setInterestRate("");
     fetchLoans();
+  }
+
+  async function handleAddRecurringExpense(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    const monthlyAmountPaise = toPaise(expenseAmount);
+    if (monthlyAmountPaise === null || monthlyAmountPaise === 0) {
+      setError("Enter a valid monthly expense amount");
+      return;
+    }
+
+    setExpenseSubmitting(true);
+    const response = await fetch("/api/recurring-expenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: expenseName,
+        monthlyAmountPaise,
+        dueDayOfMonth: Number(expenseDueDay),
+        startDate: expenseStartDate || null,
+      }),
+    });
+    setExpenseSubmitting(false);
+
+    if (!response.ok) {
+      setError("Could not add the monthly fixed expense");
+      return;
+    }
+
+    setExpenseName("");
+    setExpenseAmount("");
+    setExpenseDueDay("5");
+    setExpenseStartDate("");
+    fetchRecurringExpenses();
+  }
+
+  async function handleDeleteRecurringExpense(id: string) {
+    if (!window.confirm("Delete this monthly fixed expense?")) return;
+    const response = await fetch(`/api/recurring-expenses/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setError("Could not delete the monthly fixed expense");
+      return;
+    }
+    fetchRecurringExpenses();
   }
 
   async function handleUpdateOutstanding(id: string, currentPaise: number) {
@@ -273,6 +332,67 @@ export function LoansManager() {
         </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </form>
+
+      <section className="mt-6">
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold text-slate-700">Monthly fixed expenses</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Track regular bills such as rent, subscriptions, or utilities separately from loans. These are planned amounts and do not automatically create a paid transaction.
+          </p>
+        </div>
+
+        <div className="mb-3 space-y-2">
+          {recurringExpenses.length === 0 ? (
+            <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+              No monthly fixed expenses yet — add one below.
+            </p>
+          ) : (
+            recurringExpenses.map((expense) => (
+              <div key={expense.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{expense.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatPaiseAsInr(expense.monthlyAmountPaise)} every month · due day {expense.dueDayOfMonth}
+                    {expense.startDate ? ` · starts ${expense.startDate}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteRecurringExpense(expense.id)}
+                  className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <form onSubmit={handleAddRecurringExpense} className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-600">Add monthly fixed expense</h3>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Expense name</label>
+              <input type="text" required value={expenseName} onChange={(e) => setExpenseName(e.target.value)} placeholder="e.g. House rent" className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm sm:w-40" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Monthly amount (INR)</label>
+              <input type="number" min="0.01" step="0.01" required value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm sm:w-32" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Due day</label>
+              <input type="number" min="1" max="31" required value={expenseDueDay} onChange={(e) => setExpenseDueDay(e.target.value)} className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm sm:w-16" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Start date</label>
+              <input type="date" value={expenseStartDate} onChange={(e) => setExpenseStartDate(e.target.value)} className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+            </div>
+            <button type="submit" disabled={expenseSubmitting} className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1">
+              {expenseSubmitting ? "Adding…" : "Add expense"}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }
