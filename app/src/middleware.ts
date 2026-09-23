@@ -7,7 +7,9 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+  // Next.js serves files from /public at the site root. Let static assets through
+  // so authenticated pages can render images, fonts, and other browser resources.
+  if (PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/_next") || pathname.startsWith("/favicon") || /\.[a-z0-9]+$/i.test(pathname)) {
     return NextResponse.next();
   }
 
