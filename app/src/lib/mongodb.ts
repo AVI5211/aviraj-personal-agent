@@ -1,0 +1,36 @@
+import { MongoClient, type Db } from "mongodb";
+import { getEnv } from "@/lib/env";
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoClientPromise: Promise<MongoClient> | undefined;
+}
+
+function getClientPromise(): Promise<MongoClient> {
+  if (!global._mongoClientPromise) {
+    const client = new MongoClient(getEnv().mongodbUri);
+    global._mongoClientPromise = client.connect();
+  }
+  return global._mongoClientPromise;
+}
+
+export async function getDb(): Promise<Db> {
+  const client = await getClientPromise();
+  return client.db(getEnv().mongodbDb);
+}
+
+let indexesEnsured = false;
+
+export async function ensureIndexes(): Promise<void> {
+  if (indexesEnsured) return;
+  const db = await getDb();
+
+  await db.collection("users").createIndex({ username: 1 }, { unique: true });
+
+  await db.collection("transactions").createIndex({ transactionDate: 1 });
+  await db.collection("transactions").createIndex({ type: 1, transactionDate: 1 });
+  await db.collection("transactions").createIndex({ paymentMethod: 1 });
+  await db.collection("transactions").createIndex({ category: 1 });
+
+  indexesEnsured = true;
+}
