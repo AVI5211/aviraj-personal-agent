@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
@@ -27,7 +28,14 @@ export function NavBar() {
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="group flex items-center gap-2.5 text-slate-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white shadow-sm">AM</span>
+          <Image
+            src="/aviraj-avatar.png"
+            alt="Aviraj"
+            width={40}
+            height={40}
+            priority
+            className="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm ring-1 ring-slate-200"
+          />
           <span><span className="block text-sm font-bold tracking-tight">Aviraj Money Desk</span><span className="block text-[11px] text-slate-500">Personal finance, in one view</span></span>
         </Link>
         <button onClick={handleLogout} className="rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800">
