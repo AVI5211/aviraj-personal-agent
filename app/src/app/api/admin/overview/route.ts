@@ -5,7 +5,7 @@ import { periodQuerySchema, SHOP_DRAW_CATEGORY } from "@/lib/validation";
 import { resolvePeriod } from "@/lib/dates";
 import { buildDateRangeFilter, type TransactionDoc } from "@/lib/transactions";
 import { isLiability, type AccountDoc } from "@/lib/accounts";
-import type { SalaryRecordDoc } from "@/lib/salary";
+import { netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
 import type { InvestmentDoc } from "@/lib/investments";
 import type { LoanDoc } from "@/lib/loans";
 import type { InvoiceDoc } from "@/lib/freelance";
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const salaryIncome = salaryRecords.reduce((sum, record) => sum + (record.grossPaise - record.deductionsPaise), 0);
+  const salaryIncome = salaryRecords.reduce((sum, record) => sum + netPaiseFor(record), 0);
   const freelanceIncome = paidInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
   const receivables = issuedInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
 

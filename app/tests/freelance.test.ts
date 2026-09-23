@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeGrossAmountMinor, computeNetInrPaise } from "@/lib/freelance";
+import { computeGrossAmountMinor, computeInHandPaise, computeNetInrPaise } from "@/lib/freelance";
 
 describe("computeGrossAmountMinor", () => {
   it("sums billable hours across work logs and multiplies by the hourly rate", () => {
@@ -33,5 +33,15 @@ describe("computeNetInrPaise", () => {
   it("handles zero fees", () => {
     const netInrPaise = computeNetInrPaise(20_00, 0, 83);
     expect(netInrPaise).toBe(20_00 * 83);
+  });
+});
+
+describe("computeInHandPaise", () => {
+  it("subtracts tax paid from the net settlement", () => {
+    expect(computeInHandPaise(41_583_38, 5_000_00)).toBe(36_583_38);
+  });
+
+  it("returns the full net amount when no tax was paid", () => {
+    expect(computeInHandPaise(10_000_00, 0)).toBe(10_000_00);
   });
 });

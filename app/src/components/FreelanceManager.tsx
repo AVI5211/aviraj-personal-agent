@@ -10,9 +10,16 @@ import type {
   InvoiceApi,
   LeadExpenseApi,
   LeadExpenseCategory,
+  PaymentPlatform,
   Period,
   WorkLogApi,
 } from "@/lib/types";
+
+const PAYMENT_PLATFORMS: { value: PaymentPlatform; label: string }[] = [
+  { value: "upwork", label: "Upwork" },
+  { value: "deel", label: "Deel" },
+  { value: "other", label: "Other" },
+];
 
 function formatMinor(amountMinor: number, currency: ClientCurrency): string {
   if (currency === "INR") return formatPaiseAsInr(amountMinor);
@@ -50,6 +57,7 @@ export function FreelanceManager() {
   // Invoice selection
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [invoicePlatform, setInvoicePlatform] = useState<PaymentPlatform>("upwork");
   const [invoiceFees, setInvoiceFees] = useState("0");
   const [invoiceRate, setInvoiceRate] = useState("1");
 
@@ -233,6 +241,7 @@ export function FreelanceManager() {
       body: JSON.stringify({
         clientId,
         workLogIds: Array.from(selectedLogIds),
+        paymentPlatform: invoicePlatform,
         feesMinor,
         exchangeRateToInr: client?.currency === "INR" ? 1 : rate,
       }),
@@ -243,6 +252,7 @@ export function FreelanceManager() {
     }
     setSelectedLogIds(new Set());
     setShowInvoiceForm(false);
+    setInvoicePlatform("upwork");
     setInvoiceFees("0");
     setInvoiceRate("1");
     refreshAfterMutation();
@@ -253,13 +263,22 @@ export function FreelanceManager() {
     if (netInput === null) return;
     const net = Number(netInput);
     if (!Number.isFinite(net) || net < 0) return;
+    const taxInput = window.prompt("Tax paid on this invoice (rupees, 0 if none)", "0");
+    if (taxInput === null) return;
+    const tax = Number(taxInput);
+    if (!Number.isFinite(tax) || tax < 0) return;
     const paidDate = window.prompt("Paid date (YYYY-MM-DD)", new Date().toISOString().slice(0, 10));
     if (!paidDate) return;
 
     const response = await fetch(`/api/freelance/invoices/${invoice.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "paid", netInrPaise: Math.round(net * 100), paidDate }),
+      body: JSON.stringify({
+        status: "paid",
+        netInrPaise: Math.round(net * 100),
+        taxPaidPaise: Math.round(tax * 100),
+        paidDate,
+      }),
     });
     if (!response.ok) {
       setError("Could not mark invoice paid");
@@ -337,10 +356,20 @@ export function FreelanceManager() {
       {/* Summary cards */}
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Received</p>
+          <p className="text-xs font-medium text-slate-500">Total Received</p>
           <p className="mt-1 text-lg font-semibold text-emerald-600">
             {formatPaiseAsInr(summary?.receivedPaise ?? 0)}
           </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-medium text-slate-500">Total In-Hand Received</p>
+          <p className="mt-1 text-lg font-semibold text-emerald-600">
+            {formatPaiseAsInr(summary?.inHandReceivedPaise ?? 0)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-medium text-slate-500">Tax Paid</p>
+          <p className="mt-1 text-lg font-semibold text-red-600">{formatPaiseAsInr(summary?.taxPaidPaise ?? 0)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Pending</p>
@@ -360,6 +389,16 @@ export function FreelanceManager() {
           <p className="mt-1 text-lg font-semibold text-slate-800">
             {formatPaiseAsInr(summary?.leadExpensesPaise ?? 0)}
           </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 sm:col-span-2">
+          <p className="mb-1 text-xs font-medium text-slate-500">Received by Platform</p>
+          <div className="flex flex-wrap gap-3">
+            {PAYMENT_PLATFORMS.map((p) => (
+              <span key={p.value} className="text-sm text-slate-700">
+                {p.label}: <span className="font-semibold">{formatPaiseAsInr(summary?.byPlatform[p.value] ?? 0)}</span>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -538,7 +577,23 @@ export function FreelanceManager() {
         {showInvoiceForm && canIssueInvoice && (
           <form onSubmit={handleIssueInvoice} className="mt-3 flex flex-wrap items-end gap-2 rounded-md bg-slate-50 p-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">Fees ({clientById.get(selectedLogs[0].clientId)?.currency})</label>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Payment platform</label>
+              <select
+                value={invoicePlatform}
+                onChange={(e) => setInvoicePlatform(e.target.value as PaymentPlatform)}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+              >
+                {PAYMENT_PLATFORMS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Service fee ({clientById.get(selectedLogs[0].clientId)?.currency})
+              </label>
               <input
                 type="number"
                 min="0"
@@ -589,8 +644,11 @@ export function FreelanceManager() {
                     {client?.name ?? "Unknown client"} · {formatMinor(invoice.grossAmountMinor, invoice.currency)}
                   </p>
                   <p className="text-xs text-slate-400">
-                    Issued {invoice.issueDate} · {invoice.hours}h · Net {formatPaiseAsInr(invoice.netInrPaise)}
-                    {invoice.status === "paid" ? ` · Paid ${invoice.paidDate}` : ""}
+                    {PAYMENT_PLATFORMS.find((p) => p.value === invoice.paymentPlatform)?.label} · Issued{" "}
+                    {invoice.issueDate} · {invoice.hours}h · Net {formatPaiseAsInr(invoice.netInrPaise)}
+                    {invoice.status === "paid"
+                      ? ` · Tax ${formatPaiseAsInr(invoice.taxPaidPaise)} · In-hand ${formatPaiseAsInr(invoice.inHandPaise)} · Paid ${invoice.paidDate}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

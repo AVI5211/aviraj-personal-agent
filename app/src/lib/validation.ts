@@ -110,6 +110,11 @@ export const createSalaryRecordSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/, "must be in YYYY-MM format"),
   grossPaise: z.number().int().positive(),
   deductionsPaise: z.number().int().min(0).default(0),
+  pfEmployeePaise: z.number().int().min(0).default(0),
+  pfEmployerPaise: z.number().int().min(0).default(0),
+  tdsPaise: z.number().int().min(0).default(0),
+  recurringPf: z.boolean().default(false),
+  recurringTds: z.boolean().default(false),
   status: z.enum(salaryStatuses).default("expected"),
   receivedDate: dateString.optional(),
   note: z.string().max(300).default(""),
@@ -119,6 +124,11 @@ export const updateSalaryRecordSchema = z
   .object({
     grossPaise: z.number().int().positive().optional(),
     deductionsPaise: z.number().int().min(0).optional(),
+    pfEmployeePaise: z.number().int().min(0).optional(),
+    pfEmployerPaise: z.number().int().min(0).optional(),
+    tdsPaise: z.number().int().min(0).optional(),
+    recurringPf: z.boolean().optional(),
+    recurringTds: z.boolean().optional(),
     status: z.enum(salaryStatuses).optional(),
     receivedDate: dateString.optional(),
     note: z.string().max(300).optional(),
@@ -202,6 +212,7 @@ export const generateLoanPaymentsSchema = z.object({
 export const CLIENT_CURRENCIES = ["USD", "INR"] as const;
 export const LEAD_EXPENSE_CATEGORIES = ["upwork_connects", "subscription", "other"] as const;
 export const INVOICE_STATUSES = ["issued", "paid"] as const;
+export const PAYMENT_PLATFORMS = ["upwork", "deel", "other"] as const;
 
 export const createClientSchema = z.object({
   name: z.string().min(1).max(100),
@@ -247,6 +258,7 @@ export const listWorkLogsQuerySchema = z.object({
 export const createInvoiceSchema = z.object({
   clientId: z.string().min(1),
   workLogIds: z.array(z.string().min(1)).min(1),
+  paymentPlatform: z.enum(PAYMENT_PLATFORMS).default("other"),
   feesMinor: z.number().int().min(0).default(0),
   exchangeRateToInr: z.number().positive(),
 });
@@ -254,6 +266,7 @@ export const createInvoiceSchema = z.object({
 export const updateInvoiceSchema = z.object({
   status: z.literal("paid"),
   netInrPaise: z.number().int().min(0),
+  taxPaidPaise: z.number().int().min(0).default(0),
   paidDate: dateString,
 });
 

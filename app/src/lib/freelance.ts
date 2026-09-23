@@ -6,6 +6,7 @@ import type {
   InvoiceStatus,
   LeadExpenseApi,
   LeadExpenseCategory,
+  PaymentPlatform,
   WorkLogApi,
 } from "@/lib/types";
 
@@ -43,10 +44,12 @@ export interface InvoiceDoc {
   workLogIds: ObjectId[];
   hours: number;
   currency: ClientCurrency;
+  paymentPlatform: PaymentPlatform;
   grossAmountMinor: number;
   feesMinor: number;
   exchangeRateToInr: number;
   netInrPaise: number;
+  taxPaidPaise: number;
   status: InvoiceStatus;
   paidDate: string | null;
   createdAt: Date;
@@ -97,10 +100,13 @@ export function serializeInvoice(doc: InvoiceDoc): InvoiceApi {
     workLogIds: doc.workLogIds.map((id) => id.toString()),
     hours: doc.hours,
     currency: doc.currency,
+    paymentPlatform: doc.paymentPlatform,
     grossAmountMinor: doc.grossAmountMinor,
     feesMinor: doc.feesMinor,
     exchangeRateToInr: doc.exchangeRateToInr,
     netInrPaise: doc.netInrPaise,
+    taxPaidPaise: doc.taxPaidPaise,
+    inHandPaise: computeInHandPaise(doc.netInrPaise, doc.taxPaidPaise),
     status: doc.status,
     paidDate: doc.paidDate,
     createdAt: doc.createdAt.toISOString(),
@@ -143,4 +149,9 @@ export function computeNetInrPaise(
   exchangeRateToInr: number
 ): number {
   return Math.round(((grossAmountMinor - feesMinor) * exchangeRateToInr));
+}
+
+/** In-hand amount after tax withheld/paid on an invoice's net INR settlement. */
+export function computeInHandPaise(netInrPaise: number, taxPaidPaise: number): number {
+  return netInrPaise - taxPaidPaise;
 }

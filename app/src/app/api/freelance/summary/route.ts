@@ -42,7 +42,14 @@ export async function GET(request: NextRequest) {
   ]);
 
   const receivedPaise = paidInvoices.reduce((sum, inv) => sum + inv.netInrPaise, 0);
+  const taxPaidPaise = paidInvoices.reduce((sum, inv) => sum + inv.taxPaidPaise, 0);
+  const inHandReceivedPaise = receivedPaise - taxPaidPaise;
   const pendingPaise = issuedInvoices.reduce((sum, inv) => sum + inv.netInrPaise, 0);
+
+  const byPlatform: Record<string, number> = { upwork: 0, deel: 0, other: 0 };
+  for (const inv of paidInvoices) {
+    byPlatform[inv.paymentPlatform] = (byPlatform[inv.paymentPlatform] ?? 0) + inv.netInrPaise;
+  }
   const unbilledHours = unbilledWorkLogs.reduce((sum, log) => sum + log.billableHours, 0);
   const leadExpensesPaise = leadExpensesInRange.reduce((sum, exp) => sum + exp.amountPaise, 0);
 
@@ -74,9 +81,12 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     range,
     receivedPaise,
+    inHandReceivedPaise,
+    taxPaidPaise,
     pendingPaise,
     unbilledHours,
     unbilledAmountEstimatePaise,
     leadExpensesPaise,
+    byPlatform,
   });
 }

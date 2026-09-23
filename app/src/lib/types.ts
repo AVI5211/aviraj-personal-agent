@@ -57,12 +57,32 @@ export interface SalaryRecordApi {
   month: string;
   grossPaise: number;
   deductionsPaise: number;
+  pfEmployeePaise: number;
+  pfEmployerPaise: number;
+  tdsPaise: number;
+  recurringPf: boolean;
+  recurringTds: boolean;
+  totalDeductionsPaise: number;
+  ctcPaise: number;
   netPaise: number;
   status: SalaryStatus;
   receivedDate: string | null;
   note: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SalaryOverviewResponse {
+  totalGrossPaise: number;
+  totalCtcPaise: number;
+  totalInHandPaise: number;
+  totalPfEmployeePaise: number;
+  totalPfEmployerPaise: number;
+  totalTdsPaise: number;
+  totalOtherDeductionsPaise: number;
+  totalDeductionsPaise: number;
+  totalTaxPaidPaise: number;
+  recordCount: number;
 }
 
 export type InvestmentHoldingType = "equity" | "mutual_fund" | "fixed_deposit" | "savings" | "other";
@@ -167,6 +187,8 @@ export interface WorkLogApi {
   updatedAt: string;
 }
 
+export type PaymentPlatform = "upwork" | "deel" | "other";
+
 export interface InvoiceApi {
   id: string;
   clientId: string;
@@ -174,10 +196,13 @@ export interface InvoiceApi {
   workLogIds: string[];
   hours: number;
   currency: ClientCurrency;
+  paymentPlatform: PaymentPlatform;
   grossAmountMinor: number;
   feesMinor: number;
   exchangeRateToInr: number;
   netInrPaise: number;
+  taxPaidPaise: number;
+  inHandPaise: number;
   status: InvoiceStatus;
   paidDate: string | null;
   createdAt: string;
@@ -196,10 +221,13 @@ export interface LeadExpenseApi {
 export interface FreelanceSummaryResponse {
   range: { from: string | null; to: string | null };
   receivedPaise: number;
+  inHandReceivedPaise: number;
+  taxPaidPaise: number;
   pendingPaise: number;
   unbilledHours: number;
   unbilledAmountEstimatePaise: number;
   leadExpensesPaise: number;
+  byPlatform: Record<PaymentPlatform, number>;
 }
 export interface AdminOverviewResponse {
   range: { from: string | null; to: string | null };

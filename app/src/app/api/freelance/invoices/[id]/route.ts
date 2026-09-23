@@ -36,6 +36,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       $set: {
         status: "paid",
         netInrPaise: parsed.data.netInrPaise,
+        taxPaidPaise: parsed.data.taxPaidPaise,
         paidDate: parsed.data.paidDate,
         updatedAt: new Date(),
       },
