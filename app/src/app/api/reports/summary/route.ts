@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   const moduleFilter = { module: parsed.data.module };
   const rangeFilter = { ...moduleFilter, ...buildDateRangeFilter(range.from, range.to) };
 
-  const [byMethod, byCategory, baseOpeningBalance, priorTotals] = await Promise.all([
+  const [byMethod, byCategory, baseOpeningBalance, priorTotals, pendingReceivables] = await Promise.all([
     transactions
       .aggregate<MethodGroupResult>([
         { $match: { ...rangeFilter, category: { $nin: ASSET_TRANSFER_CATEGORIES } } },
@@ -70,6 +70,9 @@ export async function GET(request: NextRequest) {
           ])
           .toArray()
       : Promise.resolve([] as TypeGroupResult[]),
+    parsed.data.module === "personal"
+      ? db.collection("receivables").aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, total: { $sum: "$amountPaise" } } }]).toArray()
+      : Promise.resolve([]),
   ]);
 
   let totalIncome = 0;
@@ -117,5 +120,6 @@ export async function GET(request: NextRequest) {
     incomeByMethod,
     expenseByMethod,
     expenseByCategory,
+    totalReceivables: pendingReceivables[0]?.total ?? 0,
   });
 }

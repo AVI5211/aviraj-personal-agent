@@ -131,9 +131,9 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
           <SummaryCard label="Total Income" value={summary.totalIncome} tone="positive" />
           <SummaryCard label="Total Expense" value={summary.totalExpense} tone="negative" />
           <SummaryCard
-            label="Net Cash Flow"
-            value={summary.netCashFlow}
-            tone={summary.netCashFlow >= 0 ? "positive" : "negative"}
+            label={module === "personal" ? "Money lent & refundable deposits" : "Net Cash Flow"}
+            value={module === "personal" ? summary.totalReceivables ?? 0 : summary.netCashFlow}
+            tone={module === "personal" ? undefined : summary.netCashFlow >= 0 ? "positive" : "negative"}
           />
           {module === "shop" && (
             <>

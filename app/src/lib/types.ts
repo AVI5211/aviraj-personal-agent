@@ -48,6 +48,7 @@ export interface SummaryResponse {
   incomeByMethod: Record<string, number>;
   expenseByMethod: Record<string, number>;
   expenseByCategory: Record<string, number>;
+  totalReceivables?: number;
 }
 
 export interface TrendPoint {
