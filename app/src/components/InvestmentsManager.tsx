@@ -210,8 +210,8 @@ export function InvestmentsManager() {
                     : investment.currentValuePaise - investment.investedValuePaise;
                 return (
                   <div key={investment.id} className="py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <button
                           type="button"
                           onClick={() => handleShowHistory(investment.id)}
@@ -229,7 +229,7 @@ export function InvestmentsManager() {
                             : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto sm:flex-nowrap sm:gap-2">
                         <div className="text-right">
                           <p className="text-sm font-semibold text-slate-800">
                             {formatPaiseAsInr(investment.currentValuePaise)}
@@ -288,8 +288,8 @@ export function InvestmentsManager() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-600">Add Holding</h2>
-        <form onSubmit={handleAdd} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
-          <div>
+        <form onSubmit={handleAdd} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">Name</label>
             <input
               type="text"
@@ -297,15 +297,15 @@ export function InvestmentsManager() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. HDFC Mid-Cap Fund"
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">Type</label>
             <select
               value={holdingType}
               onChange={(e) => setHoldingType(e.target.value as InvestmentHoldingType)}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             >
               {HOLDING_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -314,7 +314,7 @@ export function InvestmentsManager() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">Current Value (INR)</label>
             <input
               type="number"
@@ -323,10 +323,10 @@ export function InvestmentsManager() {
               required
               value={currentValue}
               onChange={(e) => setCurrentValue(e.target.value)}
-              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">Invested (INR, optional)</label>
             <input
               type="number"
@@ -334,31 +334,31 @@ export function InvestmentsManager() {
               step="0.01"
               value={investedValue}
               onChange={(e) => setInvestedValue(e.target.value)}
-              className="w-full sm:w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">Valuation Date</label>
             <input
               type="date"
               required
               value={valuationDate}
               onChange={(e) => setValuationDate(e.target.value)}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             />
           </div>
           {holdingType === "fixed_deposit" && (
             <>
-              <div>
+              <div className="min-w-0">
                 <label className="mb-1 block text-xs font-medium text-slate-700">Maturity Date</label>
                 <input
                   type="date"
                   value={maturityDate}
                   onChange={(e) => setMaturityDate(e.target.value)}
-                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="mb-1 block text-xs font-medium text-slate-700">Interest Rate (% p.a.)</label>
                 <input
                   type="number"
@@ -366,24 +366,24 @@ export function InvestmentsManager() {
                   step="0.01"
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}
-                  className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                 />
               </div>
             </>
           )}
-          <div>
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">Note</label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             />
           </div>
           <button
             type="submit"
             disabled={submitting}
-            className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1"
+            className="min-h-11 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             Add
           </button>

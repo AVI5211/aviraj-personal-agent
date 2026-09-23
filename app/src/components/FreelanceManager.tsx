@@ -756,7 +756,7 @@ export function FreelanceManager() {
 
       {error && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <PeriodFilter
           period={period}
           customFrom={customFrom}
@@ -765,8 +765,8 @@ export function FreelanceManager() {
           onCustomFromChange={setCustomFrom}
           onCustomToChange={setCustomTo}
         />
-        <form onSubmit={handleSaveRate} className="flex items-end gap-2">
-          <div>
+        <form onSubmit={handleSaveRate} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:w-auto">
+          <div className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-700">USD → INR rate</label>
             <input
               type="number"
@@ -774,13 +774,13 @@ export function FreelanceManager() {
               step="0.01"
               value={usdInrRate}
               onChange={(e) => setUsdInrRate(e.target.value)}
-              className="w-full sm:w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm sm:w-24"
             />
           </div>
           <button
             type="submit"
             disabled={rateSaving}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="min-h-10 whitespace-nowrap rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
           >
             Save Rate
           </button>

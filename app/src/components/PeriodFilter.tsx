@@ -31,14 +31,14 @@ export function PeriodFilter({
   onCustomToChange,
 }: PeriodFilterProps) {
   return (
-    <div className="grid grid-cols-4 gap-1 rounded-lg border border-emerald-200 bg-emerald-50 p-1.5 sm:flex sm:flex-wrap sm:items-center">
+    <div className="grid w-full grid-cols-[repeat(4,minmax(0,1fr))] gap-1 rounded-lg border border-emerald-200 bg-emerald-50 p-1.5 sm:w-auto sm:grid-cols-none sm:flex sm:flex-wrap sm:items-center">
       {PERIOD_OPTIONS.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onPeriodChange(option.value)}
           aria-pressed={period === option.value}
-          className={`min-h-10 rounded-md px-1.5 py-1 text-xs font-semibold leading-tight transition-colors duration-200 sm:px-3 sm:text-sm ${
+          className={`min-h-10 min-w-0 rounded-md px-1.5 py-1 text-xs font-semibold leading-tight transition-colors duration-200 sm:px-3 sm:text-sm ${
             period === option.value
               ? "bg-emerald-200 text-emerald-950 shadow-sm ring-1 ring-emerald-300"
               : "bg-white/70 text-slate-700 hover:bg-emerald-100 hover:text-emerald-950"
