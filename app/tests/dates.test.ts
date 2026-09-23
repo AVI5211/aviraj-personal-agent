@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isValidDateString, monthsBack, resolvePeriod, todayInShopTz } from "@/lib/dates";
+import {
+  financialYearLabel,
+  isValidDateString,
+  monthsBack,
+  resolvePeriod,
+  startOfFinancialYear,
+  todayInShopTz,
+} from "@/lib/dates";
 
 // Wednesday, 23 Sep 2026 in IST (UTC+5:30) — well clear of any UTC/IST date-boundary edge case.
 const NOW = new Date("2026-09-23T10:00:00Z");
@@ -43,6 +50,15 @@ describe("resolvePeriod", () => {
     expect(resolvePeriod("year", undefined, NOW)).toEqual({ from: "2026-01-01", to: "2026-09-23" });
   });
 
+  it("fy starts on 1 April of the current financial year when today is after April", () => {
+    expect(resolvePeriod("fy", undefined, NOW)).toEqual({ from: "2026-04-01", to: "2026-09-23" });
+  });
+
+  it("fy starts on 1 April of the previous calendar year when today is Jan-Mar", () => {
+    const beforeApril = new Date("2026-02-15T10:00:00Z");
+    expect(resolvePeriod("fy", undefined, beforeApril)).toEqual({ from: "2025-04-01", to: "2026-02-15" });
+  });
+
   it("all-time has no bounds", () => {
     expect(resolvePeriod("all", undefined, NOW)).toEqual({ from: null, to: null });
   });
@@ -71,5 +87,24 @@ describe("monthsBack", () => {
   it("handles year boundaries", () => {
     const now = new Date("2026-01-15T10:00:00Z");
     expect(monthsBack(3, now)).toEqual(["2025-11", "2025-12", "2026-01"]);
+  });
+});
+
+describe("startOfFinancialYear", () => {
+  it("returns 1 April of the same year for dates from April onward", () => {
+    expect(startOfFinancialYear("2026-09-23")).toBe("2026-04-01");
+    expect(startOfFinancialYear("2026-04-01")).toBe("2026-04-01");
+  });
+
+  it("returns 1 April of the previous year for dates in Jan-Mar", () => {
+    expect(startOfFinancialYear("2026-03-31")).toBe("2025-04-01");
+    expect(startOfFinancialYear("2026-01-01")).toBe("2025-04-01");
+  });
+});
+
+describe("financialYearLabel", () => {
+  it("formats as YYYY-YY", () => {
+    expect(financialYearLabel(2026)).toBe("2026-27");
+    expect(financialYearLabel(2099)).toBe("2099-00");
   });
 });

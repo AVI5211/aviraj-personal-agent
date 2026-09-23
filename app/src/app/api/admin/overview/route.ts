@@ -87,7 +87,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const salaryIncome = salaryRecords.reduce((sum, record) => sum + netPaiseFor(record), 0);
+  // Only records actually received count as income here — an "expected" future month
+  // (e.g. a salary projection through the rest of the financial year) hasn't landed yet.
+  const salaryIncome = salaryRecords
+    .filter((record) => record.status === "received")
+    .reduce((sum, record) => sum + netPaiseFor(record), 0);
   const freelanceIncome = paidInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
   const receivables = issuedInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { SalaryOverviewResponse, SalaryRecordApi, SalaryStatus } from "@/lib/types";
 import { formatPaiseAsInr } from "@/lib/money";
+import { financialYearLabel, startOfFinancialYear, todayInShopTz } from "@/lib/dates";
 
 function currentMonthValue(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit" })
@@ -14,10 +15,25 @@ function currentYearValue(): string {
   return currentMonthValue().slice(0, 4);
 }
 
+function currentFyStartYear(): number {
+  return Number(startOfFinancialYear(todayInShopTz()).slice(0, 4));
+}
+
+// Overview period selector values: "all", "cy:<year>" (calendar year), or "fy:<startYear>"
+// (Indian financial year, 1 April startYear - 31 March startYear+1).
+type OverviewPeriodKey = string;
+
+function periodKeyLabel(key: OverviewPeriodKey): string {
+  if (key === "all") return "All time";
+  const [kind, value] = key.split(":");
+  if (kind === "fy") return `FY ${financialYearLabel(Number(value))}`;
+  return `${value} (Calendar)`;
+}
+
 export function SalaryManager() {
   const [records, setRecords] = useState<SalaryRecordApi[]>([]);
   const [overview, setOverview] = useState<SalaryOverviewResponse | null>(null);
-  const [year, setYear] = useState(currentYearValue());
+  const [periodKey, setPeriodKey] = useState<OverviewPeriodKey>(`fy:${currentFyStartYear()}`);
   const [prefilled, setPrefilled] = useState(false);
 
   const [month, setMonth] = useState(currentMonthValue());
@@ -40,8 +56,12 @@ export function SalaryManager() {
     }
   }
 
-  async function fetchOverview(forYear: string) {
-    const params = forYear === "all" ? "" : `?year=${forYear}`;
+  async function fetchOverview(forPeriodKey: OverviewPeriodKey) {
+    let params = "";
+    if (forPeriodKey !== "all") {
+      const [kind, value] = forPeriodKey.split(":");
+      params = kind === "fy" ? `?fy=${value}` : `?year=${value}`;
+    }
     const response = await fetch(`/api/salary/summary${params}`);
     if (response.ok) setOverview(await response.json());
   }
@@ -51,8 +71,8 @@ export function SalaryManager() {
   }, []);
 
   useEffect(() => {
-    fetchOverview(year);
-  }, [year]);
+    fetchOverview(periodKey);
+  }, [periodKey]);
 
   // Carry forward PF/TDS amounts from the most recent record, but only for fields the
   // user explicitly marked as recurring, and only once (so it never fights user edits).
@@ -108,17 +128,28 @@ export function SalaryManager() {
     setGross("");
     setDeductions("0");
     fetchRecords();
-    fetchOverview(year);
+    fetchOverview(periodKey);
   }
 
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this salary record?")) return;
     await fetch(`/api/salary/${id}`, { method: "DELETE" });
     fetchRecords();
-    fetchOverview(year);
+    fetchOverview(periodKey);
   }
 
-  const years = Array.from(new Set(records.map((r) => r.month.slice(0, 4)))).sort().reverse();
+  const calendarYears = Array.from(new Set(records.map((r) => r.month.slice(0, 4)))).sort().reverse();
+  const fyStartYears = Array.from(
+    new Set(
+      records.map((r) => {
+        const [y, m] = r.month.split("-").map(Number);
+        return m >= 4 ? y : y - 1;
+      })
+    )
+  ).sort((a, b) => b - a);
+  const currentFy = currentFyStartYear();
+  if (!fyStartYears.includes(currentFy)) fyStartYears.unshift(currentFy);
+  fyStartYears.sort((a, b) => b - a);
 
   return (
     <div>
@@ -128,16 +159,27 @@ export function SalaryManager() {
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-600">Salary Overview</h2>
           <select
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
+            value={periodKey}
+            onChange={(e) => setPeriodKey(e.target.value)}
             className="rounded-md border border-slate-300 px-2 py-1 text-xs"
           >
-            <option value={currentYearValue()}>{currentYearValue()}</option>
-            {years.filter((y) => y !== currentYearValue()).map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
+            <optgroup label="Financial Year">
+              {fyStartYears.map((fyStart) => (
+                <option key={`fy:${fyStart}`} value={`fy:${fyStart}`}>
+                  {periodKeyLabel(`fy:${fyStart}`)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Calendar Year">
+              <option value={`cy:${currentYearValue()}`}>{periodKeyLabel(`cy:${currentYearValue()}`)}</option>
+              {calendarYears
+                .filter((y) => y !== currentYearValue())
+                .map((y) => (
+                  <option key={`cy:${y}`} value={`cy:${y}`}>
+                    {periodKeyLabel(`cy:${y}`)}
+                  </option>
+                ))}
+            </optgroup>
             <option value="all">All time</option>
           </select>
         </div>

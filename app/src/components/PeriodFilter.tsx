@@ -8,6 +8,7 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: "month", label: "This Month" },
   { value: "lastMonth", label: "Last Month" },
   { value: "year", label: "This Year" },
+  { value: "fy", label: "This FY" },
   { value: "all", label: "All Time" },
   { value: "custom", label: "Custom" },
 ];

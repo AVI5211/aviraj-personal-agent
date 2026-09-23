@@ -1,6 +1,6 @@
 export const SHOP_TZ = "Asia/Kolkata";
 
-export type Period = "today" | "week" | "month" | "lastMonth" | "year" | "custom" | "all";
+export type Period = "today" | "week" | "month" | "lastMonth" | "year" | "fy" | "custom" | "all";
 
 export interface DateRange {
   from: string | null;
@@ -60,6 +60,18 @@ export function startOfYear(dateStr: string): string {
   return formatUtcDate(new Date(Date.UTC(y, 0, 1)));
 }
 
+/** Indian financial year: 1 April to 31 March. Returns the start date of the FY containing dateStr. */
+export function startOfFinancialYear(dateStr: string): string {
+  const { y, m } = parseDateString(dateStr);
+  const fyStartYear = m >= 4 ? y : y - 1;
+  return formatUtcDate(new Date(Date.UTC(fyStartYear, 3, 1)));
+}
+
+/** Label like "2026-27" for the financial year starting in fyStartYear. */
+export function financialYearLabel(fyStartYear: number): string {
+  return `${fyStartYear}-${String((fyStartYear + 1) % 100).padStart(2, "0")}`;
+}
+
 export function previousMonthRange(dateStr: string): { from: string; to: string } {
   const { y, m } = parseDateString(dateStr);
   const firstOfThisMonth = new Date(Date.UTC(y, m - 1, 1));
@@ -89,6 +101,8 @@ export function resolvePeriod(
     }
     case "year":
       return { from: startOfYear(today), to: today };
+    case "fy":
+      return { from: startOfFinancialYear(today), to: today };
     case "all":
       return { from: null, to: null };
     case "custom": {

@@ -1,7 +1,7 @@
 export type Module = "shop" | "personal";
 export type TransactionType = "income" | "expense";
 export type PaymentMethod = "bharatpe" | "cash" | "bank_transfer" | "other";
-export type Period = "today" | "week" | "month" | "lastMonth" | "year" | "custom" | "all";
+export type Period = "today" | "week" | "month" | "lastMonth" | "year" | "fy" | "custom" | "all";
 export type AccountType = "bank" | "cash" | "investment" | "pf" | "other_asset" | "loan";
 export type SalaryStatus = "expected" | "received";
 

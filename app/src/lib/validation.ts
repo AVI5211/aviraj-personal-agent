@@ -84,7 +84,7 @@ export const listTransactionsQuerySchema = z.object({
 
 export const periodQuerySchema = z.object({
   module: z.enum(MODULES).default("shop"),
-  period: z.enum(["today", "week", "month", "lastMonth", "year", "custom", "all"]),
+  period: z.enum(["today", "week", "month", "lastMonth", "year", "fy", "custom", "all"]),
   from: dateString.optional(),
   to: dateString.optional(),
 });
@@ -335,7 +335,7 @@ export const setExchangeRateSchema = z.object({
 });
 
 export const freelanceSummaryQuerySchema = z.object({
-  period: z.enum(["today", "week", "month", "lastMonth", "year", "custom", "all"]),
+  period: z.enum(["today", "week", "month", "lastMonth", "year", "fy", "custom", "all"]),
   from: dateString.optional(),
   to: dateString.optional(),
 });
