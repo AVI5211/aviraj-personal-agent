@@ -92,6 +92,12 @@ export function FreelanceManager() {
   // Work log inline form state, keyed by clientId
   const [logForms, setLogForms] = useState<Record<string, LogFormState>>({});
 
+  // Client cards collapse by default so a long client list doesn't dominate the page;
+  // the most recently added client (the currently active one, e.g. a new payment
+  // platform) starts expanded, older ones start collapsed.
+  const [collapsedClientIds, setCollapsedClientIds] = useState<Set<string>>(new Set());
+  const [collapseDefaultsApplied, setCollapseDefaultsApplied] = useState(false);
+
   // Invoice selection (batch-invoicing multiple unbilled entries at once)
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
@@ -180,6 +186,24 @@ export function FreelanceManager() {
     fetchLeadExpenses();
     fetchExchangeRate();
   }, [fetchClients, fetchEpics, fetchWorkLogs, fetchInvoices, fetchLeadExpenses, fetchExchangeRate]);
+
+  useEffect(() => {
+    if (collapseDefaultsApplied || clients.length === 0) return;
+    const mostRecent = [...clients].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+    setCollapsedClientIds(new Set(clients.filter((c) => c.id !== mostRecent.id).map((c) => c.id)));
+    setCollapseDefaultsApplied(true);
+  }, [clients, collapseDefaultsApplied]);
+
+  function toggleClientCollapse(id: string) {
+    setCollapsedClientIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function refreshAfterMutation() {
     fetchSummary();
@@ -612,20 +636,30 @@ export function FreelanceManager() {
             const billable = Number(logForm.billable);
             const liveEstimate =
               Number.isFinite(billable) && billable > 0 ? estimatedPaymentPaise(client, billable) : 0;
+            const isCollapsed = collapsedClientIds.has(client.id);
 
             return (
               <div key={client.id} className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-800">{client.name}</p>
-                    <p className="text-xs text-slate-400">
-                      {client.currency} · {formatMinor(client.hourlyRateMinor, client.currency)}/hr
-                    </p>
-                    {client.contractNote && <p className="text-xs text-slate-400">{client.contractNote}</p>}
-                    <p className="text-xs font-medium text-amber-600">
-                      Pending: {pending.hours}h · ~{formatPaiseAsInr(pending.paise)}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleClientCollapse(client.id)}
+                    className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                  >
+                    <span className="mt-1 text-slate-400">{isCollapsed ? "▸" : "▾"}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-slate-800">{client.name}</span>
+                      <span className="block text-xs text-slate-400">
+                        {client.currency} · {formatMinor(client.hourlyRateMinor, client.currency)}/hr
+                      </span>
+                      {!isCollapsed && client.contractNote && (
+                        <span className="block text-xs text-slate-400">{client.contractNote}</span>
+                      )}
+                      <span className="block text-xs font-medium text-amber-600">
+                        Pending: {pending.hours}h · ~{formatPaiseAsInr(pending.paise)}
+                      </span>
+                    </span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDeleteClient(client.id)}
@@ -635,6 +669,7 @@ export function FreelanceManager() {
                   </button>
                 </div>
 
+                {!isCollapsed && (
                 <form
                   onSubmit={(e) => handleAddWorkLog(client, e)}
                   className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end rounded-md bg-slate-50 p-2"
@@ -771,6 +806,7 @@ export function FreelanceManager() {
                     </button>
                   </div>
                 </form>
+                )}
               </div>
             );
           })}
