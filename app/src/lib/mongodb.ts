@@ -38,5 +38,9 @@ export async function ensureIndexes(): Promise<void> {
   await db.collection("investments").createIndex({ holdingType: 1, name: 1 });
   await db.collection("investment_valuations").createIndex({ investmentId: 1, valuationDate: 1 });
 
+  await db.collection("loans").createIndex({ status: 1 });
+  await db.collection("loan_payments").createIndex({ loanId: 1, dueDate: 1 });
+  await db.collection("loan_payments").createIndex({ loanId: 1, status: 1 });
+
   indexesEnsured = true;
 }

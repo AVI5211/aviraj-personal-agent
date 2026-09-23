@@ -150,3 +150,49 @@ export const updateInvestmentSchema = z
     note: z.string().max(300).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
+export const loanStatuses = ["active", "closed"] as const;
+export const loanPaymentStatuses = ["scheduled", "paid"] as const;
+
+export const createLoanSchema = z.object({
+  lender: z.string().min(1).max(100),
+  originalPrincipalPaise: z.number().int().positive(),
+  outstandingPrincipalPaise: z.number().int().min(0).optional(),
+  monthlyEmiPaise: z.number().int().positive(),
+  dueDayOfMonth: z.number().int().min(1).max(31),
+  startDate: dateString,
+  interestRateAnnualBps: z.number().int().min(0).max(10000).nullable().default(null),
+  status: z.enum(loanStatuses).default("active"),
+  note: z.string().max(500).default(""),
+});
+
+export const updateLoanSchema = z
+  .object({
+    lender: z.string().min(1).max(100).optional(),
+    monthlyEmiPaise: z.number().int().positive().optional(),
+    dueDayOfMonth: z.number().int().min(1).max(31).optional(),
+    interestRateAnnualBps: z.number().int().min(0).max(10000).nullable().optional(),
+    status: z.enum(loanStatuses).optional(),
+    note: z.string().max(500).optional(),
+    outstandingPrincipalPaise: z.number().int().min(0).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "at least one field must be provided" });
+
+export const createLoanPaymentSchema = z.object({
+  dueDate: dateString,
+  amountPaise: z.number().int().positive().optional(),
+  principalPaise: z.number().int().min(0).nullable().optional(),
+  interestPaise: z.number().int().min(0).nullable().optional(),
+  feesPaise: z.number().int().min(0).nullable().optional(),
+});
+
+export const markLoanPaymentPaidSchema = z.object({
+  paidDate: dateString,
+  amountPaise: z.number().int().positive(),
+  principalPaise: z.number().int().min(0).nullable().optional(),
+  interestPaise: z.number().int().min(0).nullable().optional(),
+  feesPaise: z.number().int().min(0).nullable().optional(),
+});
+
+export const generateLoanPaymentsSchema = z.object({
+  months: z.number().int().min(1).max(60).default(12),
+});

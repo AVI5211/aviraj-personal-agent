@@ -96,6 +96,50 @@ export interface InvestmentSummaryResponse {
   byType: Record<InvestmentHoldingType, number>;
 }
 
+export type LoanStatus = "active" | "closed";
+export type LoanPaymentStatus = "scheduled" | "paid";
+
+export interface LoanSummary {
+  paidCount: number;
+  pendingCount: number;
+  totalPaidPaise: number;
+  scheduledRemainingPaise: number;
+}
+
+export interface LoanApi extends LoanSummary {
+  id: string;
+  lender: string;
+  originalPrincipalPaise: number;
+  outstandingPrincipalPaise: number;
+  monthlyEmiPaise: number;
+  dueDayOfMonth: number;
+  startDate: string;
+  interestRateAnnualBps: number | null;
+  status: LoanStatus;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoanPaymentApi {
+  id: string;
+  loanId: string;
+  dueDate: string;
+  amountPaise: number;
+  principalPaise: number | null;
+  interestPaise: number | null;
+  feesPaise: number | null;
+  status: LoanPaymentStatus;
+  paidDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoanDetailResponse {
+  loan: LoanApi;
+  payments: LoanPaymentApi[];
+}
+
 export interface AdminOverviewResponse {
   range: { from: string | null; to: string | null };
   netWorth: number;

@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/shop", label: "Shop" },
   { href: "/personal", label: "Personal" },
   { href: "/investments", label: "Investments" },
+  { href: "/loans", label: "Loans" },
 ];
 
 export function NavBar() {
