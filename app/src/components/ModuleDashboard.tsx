@@ -115,7 +115,7 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold">{title}</h1>
+      <div className="mb-6"><p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Money workspace</p><h1 className="text-2xl font-bold tracking-tight text-slate-950">{title}</h1></div>
 
       <div className="mb-6">
         <PeriodFilter
@@ -129,7 +129,7 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
       </div>
 
       {summary && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
           <SummaryCard label="Total Income" value={summary.totalIncome} tone="positive" />
           <SummaryCard label="Total Expense" value={summary.totalExpense} tone="negative" />
           <SummaryCard
@@ -151,23 +151,23 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
 
       {module === "personal" && <ReceivablesManager onChanged={handleSaved} />}
 
-      <div className="mb-6 flex flex-wrap gap-3">
+      <div className="mb-6 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white/75 p-3 shadow-sm">
         <button
           onClick={() => setFormState({ type: "income" })}
-          className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white"
+          className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
         >
           + Add Income
         </button>
         <button
           onClick={() => setFormState({ type: "expense" })}
-          className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white"
+          className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
         >
           + Add Expense
         </button>
         {module === "personal" && (
           <button
             onClick={() => setFormState({ type: "expense", initialCategory: "security_deposit" })}
-            className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white sm:flex-1"
+            className="w-full rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 sm:flex-1"
           >
             + Money Lent / Deposit
           </button>
@@ -175,12 +175,12 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
       </div>
 
       <div className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-slate-600">Monthly Trend</h2>
+        <h2 className="mb-2 text-base font-bold text-slate-900">Monthly Trend</h2>
         <TrendChart trends={trends} showMoneyLent={module === "personal"} />
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-semibold text-slate-600">History</h2>
+        <h2 className="mb-2 text-base font-bold text-slate-900">History</h2>
         <TransactionHistory
           module={module}
           transactions={transactions}
@@ -220,9 +220,9 @@ function SummaryCard({
 }) {
   const color = tone === "positive" ? "text-emerald-600" : tone === "negative" ? "text-red-600" : "text-slate-800";
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`text-lg font-semibold ${color}`}>{formatPaiseAsInr(value)}</p>
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${color}`}>{formatPaiseAsInr(value)}</p>
     </div>
   );
 }

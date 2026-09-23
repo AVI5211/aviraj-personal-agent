@@ -31,7 +31,7 @@ export function PeriodFilter({
   onCustomToChange,
 }: PeriodFilterProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white/80 p-1.5 shadow-sm">
       {PERIOD_OPTIONS.map((option) => (
         <button
           key={option.value}
@@ -39,8 +39,8 @@ export function PeriodFilter({
           onClick={() => onPeriodChange(option.value)}
           className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
             period === option.value
-              ? "bg-slate-900 text-white"
-              : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           }`}
         >
           {option.label}

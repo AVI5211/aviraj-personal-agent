@@ -30,7 +30,7 @@ export function AdminOverview() {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold">Financial Overview</h1>
+      <div className="mb-6"><p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Your money, at a glance</p><h1 className="text-2xl font-bold tracking-tight text-slate-950">Financial Overview</h1></div>
 
       <div className="mb-6">
         <PeriodFilter
@@ -45,15 +45,15 @@ export function AdminOverview() {
 
       {overview && (
         <>
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">Total net worth</p>
-            <p className={`text-3xl font-bold ${overview.netWorth >= 0 ? "text-slate-900" : "text-red-600"}`}>
+          <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-lg shadow-slate-300/50">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-300">Total net worth</p>
+            <p className={`mt-1 text-3xl font-bold tracking-tight ${overview.netWorth >= 0 ? "text-white" : "text-red-300"}`}>
               {formatPaiseAsInr(overview.netWorth)}
             </p>
-            <p className="text-xs text-slate-400">Assets minus outstanding liabilities</p>
+            <p className="mt-1 text-xs text-slate-400">Assets minus outstanding liabilities</p>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Card label="Average Monthly Income" value={overview.averageMonthlyIncome} tone="positive" />
             <Card label="Average Monthly Expenses" value={overview.averageMonthlyExpense} tone="negative" />
             <Card label="Cash & Bank" value={overview.cashAndBank} />

@@ -4,12 +4,20 @@
 
 html {
   color-scheme: light;
+  background: #f4f7fb;
 }
 
 body {
-  background-color: #f8fafc;
+  background:
+    radial-gradient(circle at top right, rgba(219, 234, 254, 0.72), transparent 32rem),
+    #f4f7fb;
   overflow-x: hidden;
 }
+
+::selection { background: #bfdbfe; color: #172554; }
+
+button, a, input, select, textarea { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 
 input,
 select,
