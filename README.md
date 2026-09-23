@@ -1,7 +1,7 @@
 # Aviraj Personal Admin
 
 A private, self-hosted financial command center: consolidated net worth and cash flow across
-salary, shop, and personal finances, in one Docker Compose app backed by MongoDB.
+salary, shop, and personal finances, backed by MongoDB Atlas.
 
 See `docs/superpowers/specs/` for the full design history:
 - `2026-09-23-shop-hisab-kitab-design.md` — original shop-only v1
@@ -29,8 +29,8 @@ built (see `docs/superpowers/specs/2026-09-23-aviraj-personal-admin-phase1-desig
 ## Stack
 
 - Next.js (App Router, TypeScript, Tailwind CSS) — frontend + API routes in one service
-- MongoDB 7 via the official Node driver — internal Docker network only, no public port
-- Two Docker Compose services: `app` and `mongodb`. No Redis, no separate backend.
+- MongoDB Atlas via the official Node driver — a managed cloud cluster, not a local container
+- One Docker Compose service (`app`). No local MongoDB container, no Redis, no separate backend.
 
 ## First-time setup
 
@@ -40,12 +40,15 @@ built (see `docs/superpowers/specs/2026-09-23-aviraj-personal-admin-phase1-desig
    cp .env.example .env
    ```
 
-   - `MONGO_USER` / `MONGO_PASSWORD` — MongoDB root credentials (internal network only)
+   - `MONGODB_URI` — your MongoDB Atlas connection string (`mongodb+srv://user:pass@cluster/...`)
+   - `MONGODB_DB` — the database name to use on that cluster (e.g. `personal`)
    - `SESSION_SECRET` — 32+ random characters, e.g. `openssl rand -base64 32`
    - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — the one login for the dashboard
    - `OPENING_BALANCE_PAISE` — shop's starting cash balance in paise (e.g. `1000000` = ₹10,000.00)
    - `COOKIE_SECURE` — leave `false` unless the app is reachable over HTTPS (e.g. behind a
      reverse proxy that terminates TLS)
+
+   `.env` holds real secrets and is gitignored — never commit it.
 
 2. Build and start:
 
@@ -53,7 +56,7 @@ built (see `docs/superpowers/specs/2026-09-23-aviraj-personal-admin-phase1-desig
    docker compose up -d --build
    ```
 
-3. Check both containers are healthy:
+3. Check the container is healthy:
 
    ```bash
    docker compose ps
@@ -62,7 +65,8 @@ built (see `docs/superpowers/specs/2026-09-23-aviraj-personal-admin-phase1-desig
 4. Open **http://localhost:3000** and sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
 
 The app only binds to `127.0.0.1:3000` on the host — it is not reachable from other machines
-unless you put a reverse proxy in front of it. MongoDB's port is never published to the host.
+unless you put a reverse proxy in front of it. Lock down database access on the Atlas side via
+its IP access list / network peering rather than relying on the app alone.
 
 ## Day-to-day operations
 
@@ -70,39 +74,30 @@ unless you put a reverse proxy in front of it. MongoDB's port is never published
 # View app logs
 docker compose logs -f app
 
-# View MongoDB logs
-docker compose logs -f mongodb
-
-# Stop (keeps data)
+# Stop
 docker compose down
-
-# Stop and remove all data (irreversible)
-docker compose down -v
 ```
+
+There is no local database volume to worry about — all data lives in Atlas.
 
 ## Backups
 
-The `mongo_data` Docker volume gives you persistence across restarts, but it is **not** a
-backup — take one regularly with `mongodump`:
+Use `mongodump`/`mongorestore` directly against the Atlas connection string (run from any
+machine with network access to the cluster, not necessarily inside the app container):
 
 ```bash
 source .env
-docker compose exec mongodb mongodump \
-  -u "$MONGO_USER" -p "$MONGO_PASSWORD" --authenticationDatabase admin \
-  --db shop_hisab --archive=/tmp/backup.archive
-docker compose cp mongodb:/tmp/backup.archive ./backup-$(date +%F).archive
+mongodump --uri "$MONGODB_URI" --db "$MONGODB_DB" --archive=backup-$(date +%F).archive
 ```
 
-Store the resulting `.archive` file on separate storage (not on the same disk as the volume).
+Store the resulting `.archive` file on separate storage. Atlas also offers built-in continuous
+backups/snapshots on paid tiers — check your cluster's Backup tab.
 
 ## Restore
 
 ```bash
 source .env
-docker compose cp ./backup-YYYY-MM-DD.archive mongodb:/tmp/restore.archive
-docker compose exec mongodb mongorestore \
-  -u "$MONGO_USER" -p "$MONGO_PASSWORD" --authenticationDatabase admin \
-  --drop --archive=/tmp/restore.archive
+mongorestore --uri "$MONGODB_URI" --db "$MONGODB_DB" --drop --archive=./backup-YYYY-MM-DD.archive
 ```
 
 ## Upgrading
@@ -112,8 +107,7 @@ git pull
 docker compose up -d --build
 ```
 
-MongoDB's data volume is untouched by rebuilding the `app` image. Take a backup before any
-upgrade that changes the transaction schema.
+Take a backup before any upgrade that changes the transaction schema.
 
 ## Local development (without Docker)
 
@@ -121,7 +115,7 @@ upgrade that changes the transaction schema.
 cd app
 npm install
 cp ../.env.example .env.local   # Next.js reads .env.local automatically; fill in real values,
-                                 # and point MONGODB_URI at a local MongoDB instance
+                                 # pointing MONGODB_URI at your Atlas cluster
 npm run dev
 ```
 
