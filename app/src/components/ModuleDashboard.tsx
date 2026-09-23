@@ -60,8 +60,10 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
   const fetchTransactions = useCallback(async () => {
     if (!canQuery) return;
     const params = new URLSearchParams({ module, page: String(page), pageSize: String(PAGE_SIZE) });
-    if (range.from) params.set("from", range.from);
-    if (range.to) params.set("to", range.to);
+    if (module !== "personal") {
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+    }
     if (filters.type) params.set("type", filters.type);
     if (filters.category) params.set("category", filters.category);
     if (filters.paymentMethod) params.set("paymentMethod", filters.paymentMethod);
@@ -174,7 +176,7 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
 
       <div className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-slate-600">Monthly Trend</h2>
-        <TrendChart trends={trends} />
+        <TrendChart trends={trends} showMoneyLent={module === "personal"} />
       </div>
 
       <div>

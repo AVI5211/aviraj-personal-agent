@@ -55,6 +55,7 @@ export interface TrendPoint {
   month: string;
   income: number;
   expense: number;
+  moneyLent?: number;
 }
 
 export interface AccountApi {

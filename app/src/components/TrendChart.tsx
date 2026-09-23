@@ -6,13 +6,15 @@ import { paiseToRupees } from "@/lib/money";
 
 interface TrendChartProps {
   trends: TrendPoint[];
+  showMoneyLent?: boolean;
 }
 
-export function TrendChart({ trends }: TrendChartProps) {
+export function TrendChart({ trends, showMoneyLent = false }: TrendChartProps) {
   const data = trends.map((point) => ({
     month: point.month,
     Income: paiseToRupees(point.income),
     Expense: paiseToRupees(point.expense),
+    "Money Lent / Deposit": paiseToRupees(point.moneyLent ?? 0),
   }));
 
   return (
@@ -26,6 +28,7 @@ export function TrendChart({ trends }: TrendChartProps) {
           <Legend />
           <Bar dataKey="Income" fill="#059669" radius={[4, 4, 0, 0]} />
           <Bar dataKey="Expense" fill="#dc2626" radius={[4, 4, 0, 0]} />
+          {showMoneyLent && <Bar dataKey="Money Lent / Deposit" fill="#d97706" radius={[4, 4, 0, 0]} />}
         </BarChart>
       </ResponsiveContainer>
     </div>
