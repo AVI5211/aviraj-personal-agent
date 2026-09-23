@@ -798,13 +798,16 @@ export function FreelanceManager() {
           <p className="mt-1 text-lg font-semibold text-red-600">{formatPaiseAsInr(summary?.feesPaidPaise ?? 0)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Pending</p>
+          <p className="text-xs font-medium text-slate-500">Pending Invoices</p>
           <p className="mt-1 text-lg font-semibold text-amber-600">{formatPaiseAsInr(summary?.pendingPaise ?? 0)}</p>
+          <p className="text-xs text-slate-400">Issued, awaiting payment</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Unbilled Hours</p>
-          <p className="mt-1 text-lg font-semibold text-slate-800">{summary?.unbilledHours ?? 0}</p>
-          <p className="text-xs text-slate-400">~{formatPaiseAsInr(summary?.unbilledAmountEstimatePaise ?? 0)}</p>
+          <p className="text-xs font-medium text-slate-500">Unbilled Work</p>
+          <p className="mt-1 text-lg font-semibold text-slate-800">
+            {summary?.unbilledHours ?? 0}h · ~{formatPaiseAsInr(summary?.unbilledAmountEstimatePaise ?? 0)}
+          </p>
+          <p className="text-xs text-slate-400">Logged, not yet invoiced</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium text-slate-500">Lead Expenses</p>
