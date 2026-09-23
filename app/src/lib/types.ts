@@ -276,6 +276,8 @@ export interface AdminOverviewResponse {
   liabilitiesTotal: number;
   monthlyIncome: number;
   monthlyExpense: number;
+  averageMonthlyIncome: number;
+  averageMonthlyExpense: number;
   incomeSources: {
     salary: number;
     salaryInHand: number;

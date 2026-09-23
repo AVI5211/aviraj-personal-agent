@@ -54,8 +54,8 @@ export function AdminOverview() {
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Card label="Monthly Income" value={overview.monthlyIncome} tone="positive" />
-            <Card label="Monthly Expenses" value={overview.monthlyExpense} tone="negative" />
+            <Card label="Average Monthly Income" value={overview.averageMonthlyIncome} tone="positive" />
+            <Card label="Average Monthly Expenses" value={overview.averageMonthlyExpense} tone="negative" />
             <Card label="Cash & Bank" value={overview.cashAndBank} />
             <Card label="Freelance receivables" value={overview.receivables} />
             <Card label="Money lent & refundable deposits" value={overview.personalReceivables} />

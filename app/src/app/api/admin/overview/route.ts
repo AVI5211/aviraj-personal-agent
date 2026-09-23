@@ -15,6 +15,15 @@ interface TypeGroupResult {
   total: number;
 }
 
+function completedMonthsInPeriod(period: string, from: string | null): number {
+  if (!from || (period !== "year" && period !== "fy")) return 1;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const [fromYear, fromMonth] = from.split("-").map(Number);
+  const [todayYear, todayMonth] = today.split("-").map(Number);
+  // Use fully completed months: Jan-August for a September YTD view.
+  return Math.max(1, (todayYear - fromYear) * 12 + todayMonth - fromMonth);
+}
+
 export async function GET(request: NextRequest) {
   await ensureSeeded();
 
@@ -132,6 +141,9 @@ export async function GET(request: NextRequest) {
   const personalReceivables = pendingPersonalReceivables[0]?.total ?? 0;
   const netWorth = cashAndBank + investmentsTotal + pfTotal + otherAssetsTotal + personalReceivables - liabilitiesTotal;
 
+  const totalIncome = salaryCtc + shopIncome + personalOtherIncome + freelanceIncome;
+  const monthsForAverage = completedMonthsInPeriod(parsed.data.period, range.from);
+
   return NextResponse.json({
     range,
     netWorth,
@@ -140,8 +152,10 @@ export async function GET(request: NextRequest) {
     pfTotal,
     otherAssetsTotal,
     liabilitiesTotal,
-    monthlyIncome: salaryCtc + shopIncome + personalOtherIncome + freelanceIncome,
+    monthlyIncome: totalIncome,
     monthlyExpense: personalExpense,
+    averageMonthlyIncome: Math.round(totalIncome / monthsForAverage),
+    averageMonthlyExpense: Math.round(personalExpense / monthsForAverage),
     incomeSources: {
       salary: salaryCtc,
       salaryInHand,
