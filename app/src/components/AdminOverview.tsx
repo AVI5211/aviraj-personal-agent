@@ -82,7 +82,6 @@ export function AdminOverview() {
             <Row
               label="Perforce salary (CTC earned)"
               value={overview.incomeSources.salary}
-              note={`In-hand: ${formatPaiseAsInr(overview.incomeSources.salaryInHand)}`}
             />
             <Row label="Freelancing" value={overview.incomeSources.freelance} />
             <Row label="Shop revenue" value={overview.incomeSources.shop} />
