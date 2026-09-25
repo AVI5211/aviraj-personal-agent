@@ -8,7 +8,8 @@ import { isLiability, type AccountDoc } from "@/lib/accounts";
 import { ctcPaiseFor, netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
 import type { InvestmentDoc } from "@/lib/investments";
 import type { LoanDoc } from "@/lib/loans";
-import type { InvoiceDoc } from "@/lib/freelance";
+import type { ClientDoc, InvoiceDoc, WorkLogDoc } from "@/lib/freelance";
+import { getFreelanceUsdInrRate } from "@/lib/settings";
 
 interface TypeGroupResult {
   _id: { module: "shop" | "personal"; type: "income" | "expense"; category: string };
@@ -22,6 +23,34 @@ function completedMonthsInPeriod(period: string, from: string | null): number {
   const [todayYear, todayMonth] = today.split("-").map(Number);
   // Use fully completed months: Jan-August for a September YTD view.
   return Math.max(1, (todayYear - fromYear) * 12 + todayMonth - fromMonth);
+}
+
+function daysInMonth(month: string): number {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+}
+
+function overlappingDays(from: string, to: string, month: string): number {
+  const monthStart = `${month}-01`;
+  const monthEnd = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  const overlapStart = from > monthStart ? from : monthStart;
+  const overlapEnd = to < monthEnd ? to : monthEnd;
+  if (overlapStart > overlapEnd) return 0;
+
+  const start = new Date(`${overlapStart}T00:00:00.000Z`);
+  const end = new Date(`${overlapEnd}T00:00:00.000Z`);
+  return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
+function proratedSalaryPaise(record: SalaryRecordDoc, valuePaise: number, from: string | null, to: string | null): number {
+  if (!from || !to) return valuePaise;
+  return Math.round((valuePaise * overlappingDays(from, to, record.month)) / daysInMonth(record.month));
+}
+
+function workLogValuePaise(log: WorkLogDoc, client: ClientDoc | undefined, usdInrRate: number): number {
+  if (!client) return 0;
+  const amountMinor = log.billableHours * client.hourlyRateMinor;
+  return client.currency === "INR" ? Math.round(amountMinor) : Math.round(amountMinor * usdInrRate);
 }
 
 export async function GET(request: NextRequest) {
@@ -48,7 +77,7 @@ export async function GET(request: NextRequest) {
   const earnedFromDate = startOfYear(earnedToDate);
   const earnedRangeFilter = buildDateRangeFilter(earnedFromDate, earnedToDate);
 
-  const [byModuleTypeCategory, earnedByModuleTypeCategory, accounts, salaryRecords, earnedSalaryRecords, investments, activeLoans, issuedInvoices, paidInvoices, earnedPaidInvoices, pendingPersonalReceivables] =
+  const [byModuleTypeCategory, earnedByModuleTypeCategory, accounts, salaryRecords, earnedSalaryRecords, investments, activeLoans, issuedInvoices, workLogsInRange, freelanceClients, earnedPaidInvoices, pendingPersonalReceivables, usdInrRate] =
     await Promise.all([
       db
         .collection<TransactionDoc>("transactions")
@@ -90,15 +119,17 @@ export async function GET(request: NextRequest) {
       db.collection<InvoiceDoc>("invoices").find({ status: "issued" }).toArray(),
       range.from && range.to
         ? db
-            .collection<InvoiceDoc>("invoices")
-            .find({ status: "paid", paidDate: { $gte: range.from, $lte: range.to } })
+            .collection<WorkLogDoc>("work_logs")
+            .find({ date: { $gte: range.from, $lte: range.to } })
             .toArray()
-        : db.collection<InvoiceDoc>("invoices").find({ status: "paid" }).toArray(),
+        : db.collection<WorkLogDoc>("work_logs").find({}).toArray(),
+      db.collection<ClientDoc>("clients").find({}).toArray(),
       db
         .collection<InvoiceDoc>("invoices")
         .find({ status: "paid", paidDate: { $gte: earnedFromDate, $lte: earnedToDate } })
         .toArray(),
       db.collection("receivables").aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, total: { $sum: "$amountPaise" } } }]).toArray(),
+      getFreelanceUsdInrRate(),
     ]);
 
   let shopIncome = 0;
@@ -134,11 +165,16 @@ export async function GET(request: NextRequest) {
   // that's what shows up on Form 16 / ITR — in-hand is kept as a secondary reference only.
   const salaryCtc = salaryRecords
     .filter((record) => record.status === "received")
-    .reduce((sum, record) => sum + ctcPaiseFor(record), 0);
+    .reduce((sum, record) => sum + proratedSalaryPaise(record, ctcPaiseFor(record), range.from, range.to), 0);
   const salaryInHand = salaryRecords
     .filter((record) => record.status === "received")
-    .reduce((sum, record) => sum + netPaiseFor(record), 0);
-  const freelanceIncome = paidInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
+    .reduce((sum, record) => sum + proratedSalaryPaise(record, netPaiseFor(record), range.from, range.to), 0);
+  const clientById = new Map(freelanceClients.map((client) => [client._id.toString(), client]));
+  // Freelance income follows the day work was logged, valued at the saved USD-to-INR rate.
+  const freelanceIncome = workLogsInRange.reduce(
+    (sum, log) => sum + workLogValuePaise(log, clientById.get(log.clientId.toString()), usdInrRate),
+    0
+  );
   const receivables = issuedInvoices.reduce((sum, invoice) => sum + invoice.netInrPaise, 0);
 
   let earnedShopIncome = 0;
