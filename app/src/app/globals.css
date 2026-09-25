@@ -19,24 +19,24 @@ body {
 button, a, input, select, textarea { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 
-@keyframes leaf-fall {
-  0% { opacity: 0; transform: translate3d(0, -2.5rem, 0) rotate(0deg) scale(.75); }
-  8% { opacity: .65; }
-  100% { opacity: 0; transform: translate3d(var(--leaf-drift), 18rem, 0) rotate(420deg) scale(1); }
+@keyframes money-fall {
+  0% { opacity: 0; transform: translate3d(0, -2.5rem, 0) rotate(var(--money-turn)) scale(.78); }
+  8% { opacity: .78; }
+  100% { opacity: 0; transform: translate3d(var(--money-drift), 18rem, 0) rotate(calc(var(--money-turn) + 22deg)) scale(1); }
 }
 
-.leaf-celebration { pointer-events: none; position: absolute; inset: 0; overflow: hidden; }
-.leaf-celebration span { position: absolute; top: 0; width: 11px; height: 17px; border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #86efac, #16a34a); box-shadow: inset -2px -2px 3px rgba(20, 83, 45, .16); animation: leaf-fall 12s linear forwards; }
-.leaf-celebration span:nth-child(1) { left: 7%; --leaf-drift: 26px; animation-delay: .1s; }
-.leaf-celebration span:nth-child(2) { left: 20%; --leaf-drift: -34px; animation-delay: .7s; }
-.leaf-celebration span:nth-child(3) { left: 34%; --leaf-drift: 18px; animation-delay: 1.3s; }
-.leaf-celebration span:nth-child(4) { left: 48%; --leaf-drift: -28px; animation-delay: .4s; }
-.leaf-celebration span:nth-child(5) { left: 61%; --leaf-drift: 32px; animation-delay: 1.8s; }
-.leaf-celebration span:nth-child(6) { left: 74%; --leaf-drift: -18px; animation-delay: 1.1s; }
-.leaf-celebration span:nth-child(7) { left: 88%; --leaf-drift: 24px; animation-delay: 2.3s; }
-.leaf-celebration span:nth-child(8) { left: 95%; --leaf-drift: -24px; animation-delay: .9s; }
+.money-celebration { pointer-events: none; position: absolute; inset: 0; overflow: hidden; }
+.money-celebration span { position: absolute; top: 0; display: grid; width: 22px; height: 14px; place-items: center; border: 1px solid rgba(5, 94, 52, .32); border-radius: 3px; background: linear-gradient(135deg, #dcfce7, #86efac); box-shadow: 0 1px 2px rgba(5, 94, 52, .18), inset 0 0 0 1px rgba(255, 255, 255, .45); color: #166534; font-size: 9px; font-weight: 800; line-height: 1; animation: money-fall 12s linear forwards; }
+.money-celebration span:nth-child(1) { left: 7%; --money-drift: 26px; --money-turn: -12deg; animation-delay: .1s; }
+.money-celebration span:nth-child(2) { left: 20%; --money-drift: -34px; --money-turn: 8deg; animation-delay: .7s; }
+.money-celebration span:nth-child(3) { left: 34%; --money-drift: 18px; --money-turn: -7deg; animation-delay: 1.3s; }
+.money-celebration span:nth-child(4) { left: 48%; --money-drift: -28px; --money-turn: 11deg; animation-delay: .4s; }
+.money-celebration span:nth-child(5) { left: 61%; --money-drift: 32px; --money-turn: -10deg; animation-delay: 1.8s; }
+.money-celebration span:nth-child(6) { left: 74%; --money-drift: -18px; --money-turn: 6deg; animation-delay: 1.1s; }
+.money-celebration span:nth-child(7) { left: 88%; --money-drift: 24px; --money-turn: -8deg; animation-delay: 2.3s; }
+.money-celebration span:nth-child(8) { left: 95%; --money-drift: -24px; --money-turn: 9deg; animation-delay: .9s; }
 
-@media (prefers-reduced-motion: reduce) { .leaf-celebration span { animation: none; display: none; } }
+@media (prefers-reduced-motion: reduce) { .money-celebration span { animation: none; display: none; } }
 
 input,
 select,

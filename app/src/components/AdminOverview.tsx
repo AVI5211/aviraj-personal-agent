@@ -54,7 +54,7 @@ export function AdminOverview() {
         <>
           <div className="mb-6 grid gap-3 sm:grid-cols-2">
             <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-300 bg-white p-5 shadow-sm">
-              <LeafCelebration />
+              <MoneyCelebration />
               <p className="relative text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">Total net worth</p>
               <p className={`relative mt-1 text-3xl font-bold tracking-tight ${overview.netWorth >= 0 ? "text-slate-950" : "text-red-600"}`}>
                 {formatPaiseAsInr(overview.netWorth)}
@@ -112,8 +112,8 @@ export function AdminOverview() {
   );
 }
 
-function LeafCelebration() {
-  return <div aria-hidden="true" className="leaf-celebration">{Array.from({ length: 8 }, (_, index) => <span key={index} />)}</div>;
+function MoneyCelebration() {
+  return <div aria-hidden="true" className="money-celebration">{Array.from({ length: 8 }, (_, index) => <span key={index}>₹</span>)}</div>;
 }
 
 function Card({ label, value, tone }: { label: string; value: number; tone?: "positive" | "negative" }) {
