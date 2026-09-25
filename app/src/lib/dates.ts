@@ -1,6 +1,6 @@
 export const SHOP_TZ = "Asia/Kolkata";
 
-export type Period = "today" | "week" | "month" | "lastMonth" | "year" | "fy" | "custom" | "all";
+export type Period = "today" | "yesterday" | "week" | "month" | "year" | "fy" | "custom" | "all";
 
 export interface DateRange {
   from: string | null;
@@ -91,14 +91,16 @@ export function resolvePeriod(
   switch (period) {
     case "today":
       return { from: today, to: today };
+    case "yesterday": {
+      const yesterday = toUtcDate(today);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const date = formatUtcDate(yesterday);
+      return { from: date, to: date };
+    }
     case "week":
       return { from: startOfWeek(today), to: today };
     case "month":
       return { from: startOfMonth(today), to: today };
-    case "lastMonth": {
-      const { from, to } = previousMonthRange(today);
-      return { from, to };
-    }
     case "year":
       return { from: startOfYear(today), to: today };
     case "fy":

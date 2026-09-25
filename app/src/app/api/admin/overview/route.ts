@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
   // that's what shows up on Form 16 / ITR — in-hand is kept as a secondary reference only.
   // Month, year, FY, and all-time show complete recorded monthly CTC. Daily,
   // weekly, and explicitly custom ranges remain earned-day prorated.
-  const shouldProrateSalary = ["today", "week", "custom"].includes(parsed.data.period);
+  const shouldProrateSalary = ["today", "yesterday", "week", "custom"].includes(parsed.data.period);
   const salaryCtc = salaryRecords
     .filter((record) => record.status === "received")
     .reduce(

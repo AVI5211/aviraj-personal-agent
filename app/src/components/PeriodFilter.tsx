@@ -4,9 +4,9 @@ import type { Period } from "@/lib/types";
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
   { value: "week", label: "This Week" },
   { value: "month", label: "This Month" },
-  { value: "lastMonth", label: "Last Month" },
   { value: "year", label: "This Year" },
   { value: "fy", label: "This FY" },
   { value: "all", label: "All Time" },
