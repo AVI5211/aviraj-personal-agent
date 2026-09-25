@@ -42,8 +42,14 @@ function overlappingDays(from: string, to: string, month: string): number {
   return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
 }
 
-function proratedSalaryPaise(record: SalaryRecordDoc, valuePaise: number, from: string | null, to: string | null): number {
-  if (!from || !to) return valuePaise;
+function proratedSalaryPaise(
+  record: SalaryRecordDoc,
+  valuePaise: number,
+  from: string | null,
+  to: string | null,
+  shouldProrate: boolean
+): number {
+  if (!shouldProrate || !from || !to) return valuePaise;
   return Math.round((valuePaise * overlappingDays(from, to, record.month)) / daysInMonth(record.month));
 }
 
@@ -163,12 +169,21 @@ export async function GET(request: NextRequest) {
   // (e.g. a salary projection through the rest of the financial year) hasn't landed yet.
   // The headline figure is CTC (what was actually earned, before PF/TDS deductions), since
   // that's what shows up on Form 16 / ITR — in-hand is kept as a secondary reference only.
+  // Month, year, FY, and all-time show complete recorded monthly CTC. Daily,
+  // weekly, and explicitly custom ranges remain earned-day prorated.
+  const shouldProrateSalary = ["today", "week", "custom"].includes(parsed.data.period);
   const salaryCtc = salaryRecords
     .filter((record) => record.status === "received")
-    .reduce((sum, record) => sum + proratedSalaryPaise(record, ctcPaiseFor(record), range.from, range.to), 0);
+    .reduce(
+      (sum, record) => sum + proratedSalaryPaise(record, ctcPaiseFor(record), range.from, range.to, shouldProrateSalary),
+      0
+    );
   const salaryInHand = salaryRecords
     .filter((record) => record.status === "received")
-    .reduce((sum, record) => sum + proratedSalaryPaise(record, netPaiseFor(record), range.from, range.to), 0);
+    .reduce(
+      (sum, record) => sum + proratedSalaryPaise(record, netPaiseFor(record), range.from, range.to, shouldProrateSalary),
+      0
+    );
   const clientById = new Map(freelanceClients.map((client) => [client._id.toString(), client]));
   // Freelance income follows the day work was logged, valued at the saved USD-to-INR rate.
   const freelanceIncome = workLogsInRange.reduce(
