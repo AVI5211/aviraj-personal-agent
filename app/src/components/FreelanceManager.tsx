@@ -785,8 +785,14 @@ export function FreelanceManager() {
           customFrom={customFrom}
           customTo={customTo}
           onPeriodChange={setPeriod}
-          onCustomFromChange={setCustomFrom}
-          onCustomToChange={setCustomTo}
+          onCustomFromChange={(value) => {
+            setCustomFrom(value);
+            if (!customTo) setCustomTo(value);
+          }}
+          onCustomToChange={(value) => {
+            setCustomTo(value);
+            if (!customFrom) setCustomFrom(value);
+          }}
         />
         <form onSubmit={handleSaveRate} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:w-auto">
           <div className="min-w-0">

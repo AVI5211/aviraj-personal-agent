@@ -123,8 +123,14 @@ export function ModuleDashboard({ module, title }: ModuleDashboardProps) {
           customFrom={customFrom}
           customTo={customTo}
           onPeriodChange={setPeriod}
-          onCustomFromChange={setCustomFrom}
-          onCustomToChange={setCustomTo}
+          onCustomFromChange={(value) => {
+            setCustomFrom(value);
+            if (!customTo) setCustomTo(value);
+          }}
+          onCustomToChange={(value) => {
+            setCustomTo(value);
+            if (!customFrom) setCustomFrom(value);
+          }}
         />
       </div>
 

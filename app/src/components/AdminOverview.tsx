@@ -38,8 +38,15 @@ export function AdminOverview() {
           customFrom={customFrom}
           customTo={customTo}
           onPeriodChange={setPeriod}
-          onCustomFromChange={setCustomFrom}
-          onCustomToChange={setCustomTo}
+          onCustomFromChange={(value) => {
+            setCustomFrom(value);
+            // A single chosen date means "that day", not an incomplete filter.
+            if (!customTo) setCustomTo(value);
+          }}
+          onCustomToChange={(value) => {
+            setCustomTo(value);
+            if (!customFrom) setCustomFrom(value);
+          }}
         />
       </div>
 
