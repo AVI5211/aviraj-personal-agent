@@ -65,7 +65,12 @@ export async function GET(request: NextRequest) {
     byPlatform[inv.paymentPlatform] = (byPlatform[inv.paymentPlatform] ?? 0) + inv.netInrPaise;
   }
   const unbilledHours = unbilledWorkLogs.reduce((sum, log) => sum + log.billableHours, 0);
-  const leadExpensesPaise = leadExpensesInRange.reduce((sum, exp) => sum + exp.amountPaise, 0);
+  const leadExpensesPaise = leadExpensesInRange
+    .filter((expense) => expense.category !== "contract_commission")
+    .reduce((sum, exp) => sum + exp.amountPaise, 0);
+  const contractCommissionsPaise = leadExpensesInRange
+    .filter((expense) => expense.category === "contract_commission")
+    .reduce((sum, exp) => sum + exp.amountPaise, 0);
 
   // Best-effort snapshot of unbilled work in INR: group by client currency so
   // INR clients sum directly (their hourlyRateMinor is already in paise) and
@@ -102,6 +107,7 @@ export async function GET(request: NextRequest) {
     unbilledHours,
     unbilledAmountEstimatePaise,
     leadExpensesPaise,
+    contractCommissionsPaise,
     byPlatform,
     usdInrRate,
   });

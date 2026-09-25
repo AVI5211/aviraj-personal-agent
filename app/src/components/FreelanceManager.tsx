@@ -26,6 +26,7 @@ function formatMinor(amountMinor: number, currency: ClientCurrency): string {
 }
 
 const LEAD_EXPENSE_CATEGORIES: { value: LeadExpenseCategory; label: string }[] = [
+  { value: "contract_commission", label: "Contract commission (Dikshit)" },
   { value: "upwork_connects", label: "Upwork Connects" },
   { value: "subscription", label: "Subscription" },
   { value: "other", label: "Other" },
@@ -130,7 +131,7 @@ export function FreelanceManager() {
   // Lead expense form
   const [leadDate, setLeadDate] = useState("");
   const [leadAmount, setLeadAmount] = useState("");
-  const [leadCategory, setLeadCategory] = useState<LeadExpenseCategory>("upwork_connects");
+  const [leadCategory, setLeadCategory] = useState<LeadExpenseCategory>("contract_commission");
   const [leadDescription, setLeadDescription] = useState("");
 
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
@@ -858,10 +859,17 @@ export function FreelanceManager() {
           <p className="text-xs text-slate-400">Logged, not yet invoiced</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Lead Expenses</p>
+          <p className="text-xs font-medium text-slate-500">Other freelance expenses</p>
           <p className="mt-1 text-lg font-semibold text-slate-800">
             {formatPaiseAsInr(summary?.leadExpensesPaise ?? 0)}
           </p>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+          <p className="text-xs font-medium text-amber-800">Contract commissions</p>
+          <p className="mt-1 text-lg font-semibold text-slate-800">
+            {formatPaiseAsInr(summary?.contractCommissionsPaise ?? 0)}
+          </p>
+          <p className="text-xs text-amber-700">Paid to Dikshit in this period</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 sm:col-span-2">
           <p className="mb-1 text-xs font-medium text-slate-500">Received by Platform</p>
@@ -1567,12 +1575,13 @@ export function FreelanceManager() {
         </div>
       </div>
 
-      {/* Lead expenses */}
+      {/* Contract commissions and other freelance expenses */}
       <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-600">Lead Expenses</h2>
+        <h2 className="mb-1 text-sm font-semibold text-slate-600">Contract commissions &amp; freelance expenses</h2>
+        <p className="mb-3 text-xs text-slate-400">Record Dikshit&apos;s monthly commission here, separately from Upwork/Deel fees.</p>
 
         <div className="mb-4 divide-y divide-slate-100">
-          {leadExpenses.length === 0 && <p className="py-4 text-sm text-slate-500">No lead expenses yet.</p>}
+          {leadExpenses.length === 0 && <p className="py-4 text-sm text-slate-500">No commissions or freelance expenses yet.</p>}
           {leadExpenses.map((expense) => (
             <div key={expense.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <div className="min-w-0 flex-1">

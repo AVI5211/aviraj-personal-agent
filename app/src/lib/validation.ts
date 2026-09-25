@@ -249,7 +249,7 @@ export const returnReceivableSchema = z.object({
 // --- Freelance module ---
 
 export const CLIENT_CURRENCIES = ["USD", "INR"] as const;
-export const LEAD_EXPENSE_CATEGORIES = ["upwork_connects", "subscription", "other"] as const;
+export const LEAD_EXPENSE_CATEGORIES = ["contract_commission", "upwork_connects", "subscription", "other"] as const;
 export const INVOICE_STATUSES = ["issued", "paid"] as const;
 export const PAYMENT_PLATFORMS = ["upwork", "deel", "other"] as const;
 

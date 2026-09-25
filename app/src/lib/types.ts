@@ -188,7 +188,7 @@ export interface RecurringExpenseApi {
 
 export type ClientCurrency = "USD" | "INR";
 export type InvoiceStatus = "issued" | "paid";
-export type LeadExpenseCategory = "upwork_connects" | "subscription" | "other";
+export type LeadExpenseCategory = "contract_commission" | "upwork_connects" | "subscription" | "other";
 
 export interface ClientApi {
   id: string;
@@ -265,6 +265,7 @@ export interface FreelanceSummaryResponse {
   unbilledHours: number;
   unbilledAmountEstimatePaise: number;
   leadExpensesPaise: number;
+  contractCommissionsPaise: number;
   byPlatform: Record<PaymentPlatform, number>;
   usdInrRate: number;
 }
