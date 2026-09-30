@@ -281,7 +281,7 @@ export interface AdminOverviewResponse {
   liabilitiesTotal: number;
   monthlyIncome: number;
   monthlyExpense: number;
-  averageMonthlyIncome: number;
+  incomeAverage: { label: string; value: number } | null;
   averageMonthlyExpense: number;
   incomeSources: {
     salary: number;

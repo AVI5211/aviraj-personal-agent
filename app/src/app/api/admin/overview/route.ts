@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { ensureSeeded } from "@/lib/seed";
 import { periodQuerySchema, SHOP_DRAW_CATEGORY } from "@/lib/validation";
-import { resolvePeriod, startOfYear, todayInShopTz } from "@/lib/dates";
+import { resolvePeriod, startOfFinancialYear, startOfYear, todayInShopTz } from "@/lib/dates";
+import { overviewIncomeAverage } from "@/lib/overview-income-average";
 import { buildDateRangeFilter, type TransactionDoc } from "@/lib/transactions";
 import { isLiability, type AccountDoc } from "@/lib/accounts";
 import { ctcPaiseFor, netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
@@ -212,6 +213,37 @@ export async function GET(request: NextRequest) {
   );
   const totalMoneyEarned = earnedSalaryCtc + earnedShopIncome + earnedPersonalIncome + earnedFreelanceGross;
 
+  // The average cards use gross earned money, not the selected period's cash-flow total.
+  // Re-query only when the selected average has a different earning window.
+  async function grossEarnedBetween(from: string, to: string): Promise<number> {
+    if (from > to) return 0;
+    const [transactionGroups, salaries, invoices] = await Promise.all([
+      db.collection<TransactionDoc>("transactions").aggregate<TypeGroupResult>([
+        { $match: buildDateRangeFilter(from, to) },
+        { $group: { _id: { module: "$module", type: "$type", category: "$category" }, total: { $sum: "$amountPaise" } } },
+      ]).toArray(),
+      db.collection<SalaryRecordDoc>("salary_records").find({ month: { $gte: from.slice(0, 7), $lte: to.slice(0, 7) }, status: "received" }).toArray(),
+      db.collection<InvoiceDoc>("invoices").find({ status: "paid", paidDate: { $gte: from, $lte: to } }).toArray(),
+    ]);
+    const transactionIncome = transactionGroups.reduce((sum, row) => {
+      if (row._id.type !== "income") return sum;
+      if (row._id.module === "personal" && [SHOP_DRAW_CATEGORY, "money_return"].includes(row._id.category)) return sum;
+      return sum + row.total;
+    }, 0);
+    return transactionIncome
+      + salaries.reduce((sum, record) => sum + ctcPaiseFor(record), 0)
+      + invoices.reduce((sum, invoice) => sum + Math.round(invoice.grossAmountMinor * invoice.exchangeRateToInr), 0);
+  }
+
+  const yesterday = new Date(`${earnedToDate}T00:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayDate = yesterday.toISOString().slice(0, 10);
+  const [fiscalGross, yearThroughYesterdayGross] = await Promise.all([
+    parsed.data.period === "fy" ? grossEarnedBetween(startOfFinancialYear(earnedToDate), earnedToDate) : Promise.resolve(0),
+    parsed.data.period === "year" ? grossEarnedBetween(earnedFromDate, yesterdayDate) : Promise.resolve(0),
+  ]);
+  const incomeAverage = overviewIncomeAverage(parsed.data.period, earnedToDate, totalMoneyEarned, fiscalGross, yearThroughYesterdayGross);
+
   // Detailed investment holdings (the `investments` collection) supersede the coarse
   // `accounts` type:"investment" balance for net worth, so an account isn't double-counted
   // once its holdings have been migrated into the investments module.
@@ -251,7 +283,7 @@ export async function GET(request: NextRequest) {
     liabilitiesTotal,
     monthlyIncome: totalIncome,
     monthlyExpense: personalExpense,
-    averageMonthlyIncome: Math.round(totalIncome / monthsForAverage),
+    incomeAverage,
     averageMonthlyExpense: Math.round(personalExpense / monthsForAverage),
     incomeSources: {
       salary: salaryCtc,
