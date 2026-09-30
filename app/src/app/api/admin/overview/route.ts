@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
         } else {
           personalExpense += row.total;
         }
-      } else if (row._id.category === SHOP_DRAW_CATEGORY) {
+      } else if (row._id.category === SHOP_DRAW_CATEGORY || row._id.category === "money_return") {
         // Money already counted once as shop revenue above — skip it here so it
         // isn't double-counted as "other personal income" once it's drawn out.
         continue;

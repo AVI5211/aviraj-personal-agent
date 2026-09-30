@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PeriodFilter } from "@/components/PeriodFilter";
+import { OverviewEarningsChart } from "@/components/OverviewEarningsChart";
+import { previousMonthRange, todayInShopTz } from "@/lib/dates";
 import { formatPaiseAsInr } from "@/lib/money";
 import type { AdminOverviewResponse, Period } from "@/lib/types";
 
@@ -10,6 +12,7 @@ export function AdminOverview() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
+  const [chartShortcut, setChartShortcut] = useState<"last7" | "lastMonth" | null>(null);
 
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
 
@@ -37,13 +40,15 @@ export function AdminOverview() {
           period={period}
           customFrom={customFrom}
           customTo={customTo}
-          onPeriodChange={setPeriod}
+          onPeriodChange={(value) => { setChartShortcut(null); setPeriod(value); }}
           onCustomFromChange={(value) => {
+            setChartShortcut(null);
             setCustomFrom(value);
             // A single chosen date means "that day", not an incomplete filter.
             if (!customTo) setCustomTo(value);
           }}
           onCustomToChange={(value) => {
+            setChartShortcut(null);
             setCustomTo(value);
             if (!customFrom) setCustomFrom(value);
           }}
@@ -77,6 +82,33 @@ export function AdminOverview() {
             <Card label="Freelance receivables" value={overview.receivables} />
             <Card label="Money lent & refundable deposits" value={overview.personalReceivables} />
           </div>
+
+          <OverviewEarningsChart
+            period={period}
+            customFrom={customFrom}
+            customTo={customTo}
+            shortcut={chartShortcut}
+            overviewTotal={overview.monthlyIncome}
+            onShortcutChange={(value) => {
+              if (value === "last7" || value === "lastMonth") {
+                const today = todayInShopTz();
+                let range;
+                if (value === "lastMonth") range = previousMonthRange(today);
+                else {
+                  const first = new Date(`${today}T00:00:00.000Z`);
+                  first.setUTCDate(first.getUTCDate() - 6);
+                  range = { from: first.toISOString().slice(0, 10), to: today };
+                }
+                setCustomFrom(range.from);
+                setCustomTo(range.to);
+                setChartShortcut(value);
+                setPeriod("custom");
+              } else {
+                setChartShortcut(null);
+                setPeriod(value);
+              }
+            }}
+          />
 
           <Section title="Income & security deposits">
             <Row
