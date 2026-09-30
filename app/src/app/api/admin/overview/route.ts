@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
   const earnedFromDate = startOfYear(earnedToDate);
   const earnedRangeFilter = buildDateRangeFilter(earnedFromDate, earnedToDate);
 
-  const [byModuleTypeCategory, earnedByModuleTypeCategory, accounts, salaryRecords, earnedSalaryRecords, investments, activeLoans, issuedInvoices, workLogsInRange, freelanceClients, earnedPaidInvoices, pendingPersonalReceivables, usdInrRate] =
+  const [byModuleTypeCategory, earnedByModuleTypeCategory, accounts, salaryRecords, earnedSalaryRecords, investments, activeLoans, issuedInvoices, workLogsInRange, freelanceClients, earnedWorkLogs, pendingPersonalReceivables, usdInrRate] =
     await Promise.all([
       db
         .collection<TransactionDoc>("transactions")
@@ -122,10 +122,7 @@ export async function GET(request: NextRequest) {
             .toArray()
         : db.collection<WorkLogDoc>("work_logs").find({}).toArray(),
       db.collection<ClientDoc>("clients").find({}).toArray(),
-      db
-        .collection<InvoiceDoc>("invoices")
-        .find({ status: "paid", paidDate: { $gte: earnedFromDate, $lte: earnedToDate } })
-        .toArray(),
+      db.collection<WorkLogDoc>("work_logs").find({ date: { $gte: earnedFromDate, $lte: earnedToDate } }).toArray(),
       db.collection("receivables").aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, total: { $sum: "$amountPaise" } } }]).toArray(),
       getFreelanceUsdInrRate(),
     ]);
@@ -198,8 +195,8 @@ export async function GET(request: NextRequest) {
   const earnedSalaryCtc = earnedSalaryRecords
     .filter((record) => record.status === "received")
     .reduce((sum, record) => sum + ctcPaiseFor(record), 0);
-  const earnedFreelanceGross = earnedPaidInvoices.reduce(
-    (sum, invoice) => sum + Math.round(invoice.grossAmountMinor * invoice.exchangeRateToInr),
+  const earnedFreelanceGross = earnedWorkLogs.reduce(
+    (sum, log) => sum + workLogValuePaise(log, clientById.get(log.clientId.toString()), usdInrRate),
     0
   );
   const totalMoneyEarned = earnedSalaryCtc + earnedShopIncome + earnedPersonalIncome + earnedFreelanceGross;
@@ -208,13 +205,13 @@ export async function GET(request: NextRequest) {
   // Re-query only when the selected average has a different earning window.
   async function grossEarnedBetween(from: string, to: string): Promise<number> {
     if (from > to) return 0;
-    const [transactionGroups, salaries, invoices] = await Promise.all([
+    const [transactionGroups, salaries, workLogs] = await Promise.all([
       db.collection<TransactionDoc>("transactions").aggregate<TypeGroupResult>([
         { $match: buildDateRangeFilter(from, to) },
         { $group: { _id: { module: "$module", type: "$type", category: "$category" }, total: { $sum: "$amountPaise" } } },
       ]).toArray(),
       db.collection<SalaryRecordDoc>("salary_records").find({ month: { $gte: from.slice(0, 7), $lte: to.slice(0, 7) }, status: "received" }).toArray(),
-      db.collection<InvoiceDoc>("invoices").find({ status: "paid", paidDate: { $gte: from, $lte: to } }).toArray(),
+      db.collection<WorkLogDoc>("work_logs").find({ date: { $gte: from, $lte: to } }).toArray(),
     ]);
     const transactionIncome = transactionGroups.reduce((sum, row) => {
       if (row._id.type !== "income") return sum;
@@ -223,7 +220,7 @@ export async function GET(request: NextRequest) {
     }, 0);
     return transactionIncome
       + salaries.reduce((sum, record) => sum + ctcPaiseFor(record), 0)
-      + invoices.reduce((sum, invoice) => sum + Math.round(invoice.grossAmountMinor * invoice.exchangeRateToInr), 0);
+      + workLogs.reduce((sum, log) => sum + workLogValuePaise(log, clientById.get(log.clientId.toString()), usdInrRate), 0);
   }
 
   const yesterday = new Date(`${earnedToDate}T00:00:00Z`);

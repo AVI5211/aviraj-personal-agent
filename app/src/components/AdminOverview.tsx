@@ -67,7 +67,7 @@ export function AdminOverview() {
               <p className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
                 {formatPaiseAsInr(overview.totalMoneyEarned)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">Jan 1–today · before tax &amp; service fees</p>
+              <p className="mt-1 text-xs text-slate-500">Jan 1–today · includes logged freelance work · before tax &amp; service fees</p>
             </div>
           </div>
 
