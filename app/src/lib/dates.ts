@@ -81,6 +81,15 @@ export function previousMonthRange(dateStr: string): { from: string; to: string 
   return { from: formatUtcDate(firstOfPrevMonth), to: formatUtcDate(lastOfPrevMonth) };
 }
 
+/** Seven completed calendar days ending yesterday, in the app's local date. */
+export function lastSevenCompleteDaysRange(dateStr: string): { from: string; to: string } {
+  const from = toUtcDate(dateStr);
+  from.setUTCDate(from.getUTCDate() - 7);
+  const to = toUtcDate(dateStr);
+  to.setUTCDate(to.getUTCDate() - 1);
+  return { from: formatUtcDate(from), to: formatUtcDate(to) };
+}
+
 export function resolvePeriod(
   period: Period,
   custom?: { from?: string; to?: string },

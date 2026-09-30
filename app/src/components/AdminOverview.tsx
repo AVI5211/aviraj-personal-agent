@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { OverviewEarningsChart } from "@/components/OverviewEarningsChart";
-import { previousMonthRange, todayInShopTz } from "@/lib/dates";
+import { lastSevenCompleteDaysRange, previousMonthRange, todayInShopTz } from "@/lib/dates";
 import { formatPaiseAsInr } from "@/lib/money";
 import type { AdminOverviewResponse, Period } from "@/lib/types";
 
 export function AdminOverview() {
-  const [period, setPeriod] = useState<Period>("month");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [initialRange] = useState(() => lastSevenCompleteDaysRange(todayInShopTz()));
+  const [period, setPeriod] = useState<Period>("custom");
+  const [customFrom, setCustomFrom] = useState(initialRange.from);
+  const [customTo, setCustomTo] = useState(initialRange.to);
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
-  const [chartShortcut, setChartShortcut] = useState<"last7" | "lastMonth" | null>(null);
+  const [chartShortcut, setChartShortcut] = useState<"last7" | "lastMonth" | null>("last7");
 
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
 
@@ -94,13 +95,7 @@ export function AdminOverview() {
                 const today = todayInShopTz();
                 let range;
                 if (value === "lastMonth") range = previousMonthRange(today);
-                else {
-                  const first = new Date(`${today}T00:00:00.000Z`);
-                  first.setUTCDate(first.getUTCDate() - 7);
-                  const last = new Date(`${today}T00:00:00.000Z`);
-                  last.setUTCDate(last.getUTCDate() - 1);
-                  range = { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
-                }
+                else range = lastSevenCompleteDaysRange(today);
                 setCustomFrom(range.from);
                 setCustomTo(range.to);
                 setChartShortcut(value);

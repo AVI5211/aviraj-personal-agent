@@ -1,4 +1,4 @@
-import { previousMonthRange, resolvePeriod, startOfFinancialYear, startOfMonth, startOfYear, todayInShopTz, type Period } from "@/lib/dates";
+import { lastSevenCompleteDaysRange, previousMonthRange, resolvePeriod, startOfFinancialYear, startOfMonth, startOfYear, todayInShopTz, type Period } from "@/lib/dates";
 import { ctcPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
 import type { ClientDoc, WorkLogDoc } from "@/lib/freelance";
 import type { TransactionDoc } from "@/lib/transactions";
@@ -17,11 +17,7 @@ export type EarningsChartPoint = {
 export function chartRange(period: EarningsChartPeriod, today = todayInShopTz(), custom?: { from: string; to: string }, allFrom?: string) {
   const current = new Date(`${today}T00:00:00.000Z`);
   if (period === "last7") {
-    const first = new Date(current);
-    first.setUTCDate(first.getUTCDate() - 7);
-    const last = new Date(current);
-    last.setUTCDate(last.getUTCDate() - 1);
-    return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10), granularity: "day" as const };
+    return { ...lastSevenCompleteDaysRange(today), granularity: "day" as const };
   }
   if (period === "lastMonth") return { ...previousMonthRange(today), granularity: "day" as const };
   if (period === "month") {
