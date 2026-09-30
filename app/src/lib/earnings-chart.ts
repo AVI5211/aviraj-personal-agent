@@ -18,8 +18,10 @@ export function chartRange(period: EarningsChartPeriod, today = todayInShopTz(),
   const current = new Date(`${today}T00:00:00.000Z`);
   if (period === "last7") {
     const first = new Date(current);
-    first.setUTCDate(first.getUTCDate() - 6);
-    return { from: first.toISOString().slice(0, 10), to: today, granularity: "day" as const };
+    first.setUTCDate(first.getUTCDate() - 7);
+    const last = new Date(current);
+    last.setUTCDate(last.getUTCDate() - 1);
+    return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10), granularity: "day" as const };
   }
   if (period === "lastMonth") return { ...previousMonthRange(today), granularity: "day" as const };
   if (period === "month") {

@@ -96,8 +96,10 @@ export function AdminOverview() {
                 if (value === "lastMonth") range = previousMonthRange(today);
                 else {
                   const first = new Date(`${today}T00:00:00.000Z`);
-                  first.setUTCDate(first.getUTCDate() - 6);
-                  range = { from: first.toISOString().slice(0, 10), to: today };
+                  first.setUTCDate(first.getUTCDate() - 7);
+                  const last = new Date(`${today}T00:00:00.000Z`);
+                  last.setUTCDate(last.getUTCDate() - 1);
+                  range = { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
                 }
                 setCustomFrom(range.from);
                 setCustomTo(range.to);

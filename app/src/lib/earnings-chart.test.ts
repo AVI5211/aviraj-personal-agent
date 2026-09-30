@@ -36,4 +36,10 @@ describe("Overview income chart", () => {
     expect(points.map((point) => point.date)).toEqual(["2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]);
     expect(points.find((point) => point.date === "2026-09")?.salary).toBe(11679500);
   });
+
+  it("uses the seven completed days before today", () => {
+    expect(chartRange("last7", "2026-10-01")).toEqual({
+      from: "2026-09-24", to: "2026-09-30", granularity: "day",
+    });
+  });
 });
