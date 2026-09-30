@@ -102,6 +102,8 @@ export function FreelanceManager() {
   const [preferredClientId, setPreferredClientId] = useState<string | null>(null);
   const [preferenceLoaded, setPreferenceLoaded] = useState(false);
   const [preferenceSaving, setPreferenceSaving] = useState(false);
+  const preferenceTouchStart = useRef<{ x: number; y: number } | null>(null);
+  const suppressPreferenceClick = useRef(false);
 
   // Invoice selection (batch-invoicing multiple unbilled entries at once)
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
@@ -936,16 +938,49 @@ export function FreelanceManager() {
           <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
             <p className="text-sm font-semibold text-slate-800">Open for logging by default</p>
             <p className="mt-0.5 text-xs text-slate-600">Choose a client. Your choice stays saved on phone and web.</p>
-            <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Default freelance client">
+            <div
+              className="mt-3 grid touch-pan-y grid-cols-3 gap-2"
+              role="group"
+              aria-label="Default freelance client"
+              onTouchStart={(event) => {
+                const touch = event.touches[0];
+                preferenceTouchStart.current = { x: touch.clientX, y: touch.clientY };
+              }}
+              onTouchEnd={(event) => {
+                const start = preferenceTouchStart.current;
+                preferenceTouchStart.current = null;
+                const touch = event.changedTouches[0];
+                if (!start || !touch || Math.abs(touch.clientX - start.x) < 24 ||
+                    Math.abs(touch.clientX - start.x) < Math.abs(touch.clientY - start.y)) return;
+                const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-client-id]")];
+                const nearest = buttons.reduce<HTMLButtonElement | null>((best, button) => {
+                  const center = button.getBoundingClientRect().left + button.offsetWidth / 2;
+                  const bestCenter = best ? best.getBoundingClientRect().left + best.offsetWidth / 2 : Infinity;
+                  return Math.abs(center - touch.clientX) < Math.abs(bestCenter - touch.clientX) ? button : best;
+                }, null);
+                if (nearest?.dataset.clientId) {
+                  suppressPreferenceClick.current = true;
+                  window.setTimeout(() => { suppressPreferenceClick.current = false; }, 500);
+                  void chooseDefaultClient(nearest.dataset.clientId);
+                }
+              }}
+            >
               {clients.map((client) => {
                 const selected = client.id === activeDefaultClientId;
                 return (
                   <button
                     key={client.id}
+                    data-client-id={client.id}
                     type="button"
                     aria-pressed={selected}
                     disabled={preferenceSaving}
-                    onClick={() => chooseDefaultClient(client.id)}
+                    onClick={() => {
+                      if (suppressPreferenceClick.current) {
+                        suppressPreferenceClick.current = false;
+                        return;
+                      }
+                      void chooseDefaultClient(client.id);
+                    }}
                     className={`min-h-12 min-w-0 rounded-lg border px-2 py-2 text-center text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-wait ${selected ? "border-emerald-600 bg-emerald-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50"}`}
                   >
                     <span className="block truncate">{client.name}</span>
