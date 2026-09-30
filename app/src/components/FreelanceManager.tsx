@@ -95,11 +95,13 @@ export function FreelanceManager() {
   // Work log inline form state, keyed by clientId
   const [logForms, setLogForms] = useState<Record<string, LogFormState>>({});
 
-  // Client cards collapse by default so a long client list doesn't dominate the page;
-  // the most recently added client (the currently active one, e.g. a new payment
-  // platform) starts expanded, older ones start collapsed.
+  // A saved preference decides which client opens for logging on every device.
+  // Until one is chosen, retain the previous newest-client behavior.
   const [collapsedClientIds, setCollapsedClientIds] = useState<Set<string>>(new Set());
   const [collapseDefaultsApplied, setCollapseDefaultsApplied] = useState(false);
+  const [preferredClientId, setPreferredClientId] = useState<string | null>(null);
+  const [preferenceLoaded, setPreferenceLoaded] = useState(false);
+  const [preferenceSaving, setPreferenceSaving] = useState(false);
 
   // Invoice selection (batch-invoicing multiple unbilled entries at once)
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
@@ -137,6 +139,10 @@ export function FreelanceManager() {
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
 
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
+  const newestClientId = useMemo(() => [...clients].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )[0]?.id ?? null, [clients]);
+  const activeDefaultClientId = preferredClientId && clientById.has(preferredClientId) ? preferredClientId : newestClientId;
   const epicById = useMemo(() => new Map(epics.map((e) => [e.id, e])), [epics]);
 
   const fetchSummary = useCallback(async () => {
@@ -155,6 +161,19 @@ export function FreelanceManager() {
     if (response.ok) {
       const data = await response.json();
       setClients(data.clients);
+    }
+  }, []);
+
+  const fetchDefaultClient = useCallback(async () => {
+    try {
+      const response = await fetch("/api/freelance/default-client");
+      if (!response.ok) throw new Error("Could not load your default client");
+      const data: { clientId: string | null } = await response.json();
+      setPreferredClientId(data.clientId);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not load your default client");
+    } finally {
+      setPreferenceLoaded(true);
     }
   }, []);
 
@@ -204,21 +223,43 @@ export function FreelanceManager() {
 
   useEffect(() => {
     fetchClients();
+    fetchDefaultClient();
     fetchEpics();
     fetchWorkLogs();
     fetchInvoices();
     fetchLeadExpenses();
     fetchExchangeRate();
-  }, [fetchClients, fetchEpics, fetchWorkLogs, fetchInvoices, fetchLeadExpenses, fetchExchangeRate]);
+  }, [fetchClients, fetchDefaultClient, fetchEpics, fetchWorkLogs, fetchInvoices, fetchLeadExpenses, fetchExchangeRate]);
 
   useEffect(() => {
-    if (collapseDefaultsApplied || clients.length === 0) return;
-    const mostRecent = [...clients].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
-    setCollapsedClientIds(new Set(clients.filter((c) => c.id !== mostRecent.id).map((c) => c.id)));
+    if (collapseDefaultsApplied || !preferenceLoaded || clients.length === 0) return;
+    setCollapsedClientIds(new Set(clients.filter((client) => client.id !== activeDefaultClientId).map((client) => client.id)));
     setCollapseDefaultsApplied(true);
-  }, [clients, collapseDefaultsApplied]);
+  }, [clients, collapseDefaultsApplied, preferenceLoaded, activeDefaultClientId]);
+
+  async function chooseDefaultClient(id: string) {
+    if (preferenceSaving || id === preferredClientId) return;
+    setPreferenceSaving(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/freelance/default-client", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: id }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error ?? "Could not save your default client");
+      }
+      setPreferredClientId(id);
+      setCollapsedClientIds(new Set(clients.filter((client) => client.id !== id).map((client) => client.id)));
+      setCollapseDefaultsApplied(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not save your default client");
+    } finally {
+      setPreferenceSaving(false);
+    }
+  }
 
   function toggleClientCollapse(id: string) {
     setCollapsedClientIds((prev) => {
@@ -289,7 +330,11 @@ export function FreelanceManager() {
       setError(data?.error ?? "Could not delete client");
       return;
     }
-    fetchClients();
+    if (id === preferredClientId) {
+      setPreferredClientId(null);
+    }
+    await fetchClients();
+    if (id === preferredClientId) setCollapseDefaultsApplied(false);
   }
 
   // Default a client's log form to the most recently used epic for that client.
@@ -886,6 +931,31 @@ export function FreelanceManager() {
       {/* Clients */}
       <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-600">Clients</h2>
+
+        {clients.length > 0 && (
+          <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+            <p className="text-sm font-semibold text-slate-800">Open for logging by default</p>
+            <p className="mt-0.5 text-xs text-slate-600">Choose a client. Your choice stays saved on phone and web.</p>
+            <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Default freelance client">
+              {clients.map((client) => {
+                const selected = client.id === activeDefaultClientId;
+                return (
+                  <button
+                    key={client.id}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={preferenceSaving}
+                    onClick={() => chooseDefaultClient(client.id)}
+                    className={`min-h-12 min-w-0 rounded-lg border px-2 py-2 text-center text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-wait ${selected ? "border-emerald-600 bg-emerald-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50"}`}
+                  >
+                    <span className="block truncate">{client.name}</span>
+                    {selected && <span className="block text-[11px] font-medium">Default</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="mb-4 divide-y divide-slate-100">
           {clients.length === 0 && <p className="py-4 text-sm text-slate-500">No clients yet — add one below.</p>}

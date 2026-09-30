@@ -60,3 +60,26 @@ export async function setFreelanceUsdInrRate(rate: number): Promise<void> {
     { upsert: true }
   );
 }
+
+interface DefaultFreelanceClientDoc {
+  _id: string;
+  clientId: string;
+  updatedAt: Date;
+}
+
+const DEFAULT_FREELANCE_CLIENT_ID = "default_freelance_client";
+
+export async function getDefaultFreelanceClientId(): Promise<string | null> {
+  const db = await getDb();
+  const doc = await db.collection<DefaultFreelanceClientDoc>("settings").findOne({ _id: DEFAULT_FREELANCE_CLIENT_ID });
+  return doc?.clientId ?? null;
+}
+
+export async function setDefaultFreelanceClientId(clientId: string): Promise<void> {
+  const db = await getDb();
+  await db.collection<DefaultFreelanceClientDoc>("settings").updateOne(
+    { _id: DEFAULT_FREELANCE_CLIENT_ID },
+    { $set: { clientId, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
