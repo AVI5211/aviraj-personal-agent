@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatPaiseAsInr, paiseToRupees } from "@/lib/money";
-import type { Period } from "@/lib/types";
 import type { EarningsChartPoint } from "@/lib/earnings-chart";
 
 type Shortcut = "last7" | "month" | "lastMonth" | "year" | "fy";
@@ -11,15 +10,6 @@ type Shortcut = "last7" | "month" | "lastMonth" | "year" | "fy";
 interface ChartResponse {
   range: { from: string; to: string; granularity: "day" | "month" };
   points: EarningsChartPoint[];
-}
-
-interface Props {
-  period: Period;
-  customFrom: string;
-  customTo: string;
-  shortcut: Shortcut | null;
-  onShortcutChange: (value: Shortcut) => void;
-  overviewTotal: number;
 }
 
 const shortcuts: { value: Shortcut; label: string }[] = [
@@ -37,19 +27,15 @@ function shortAmount(paise: number) {
   return `₹${Math.round(rupees)}`;
 }
 
-export function OverviewEarningsChart({ period, customFrom, customTo, shortcut, onShortcutChange, overviewTotal }: Props) {
+export function OverviewEarningsChart() {
+  const [period, setPeriod] = useState<Shortcut>("last7");
   const [chart, setChart] = useState<ChartResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (period === "custom" && (!customFrom || !customTo)) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ period });
-    if (period === "custom") {
-      params.set("from", customFrom);
-      params.set("to", customTo);
-    }
     setLoading(true);
     setError("");
     fetch(`/api/admin/earnings-chart?${params}`, { signal: controller.signal })
@@ -61,7 +47,7 @@ export function OverviewEarningsChart({ period, customFrom, customTo, shortcut, 
       .catch((reason) => { if (!controller.signal.aborted) setError(reason.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [period, customFrom, customTo]);
+  }, [period]);
 
   const points = chart?.points ?? [];
   const chartTotal = points.reduce((sum, point) => sum + point.total, 0);
@@ -74,31 +60,29 @@ export function OverviewEarningsChart({ period, customFrom, customTo, shortcut, 
     Personal: paiseToRupees(point.personal),
   }));
   const hasIncome = chartTotal > 0;
-  const selected = shortcut ?? (["month", "year", "fy"].includes(period) ? period : "selected");
 
   return (
     <section className="mb-6 min-w-0 rounded-xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="Income trend">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Income trend</h2>
-          <p className="mt-0.5 text-xs text-slate-500">Total income (this period), by {chart?.range.granularity ?? "day"}</p>
+          <p className="mt-0.5 text-xs text-slate-500">Earnings in the chart range, by {chart?.range.granularity ?? "day"}</p>
         </div>
         <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
           <span>Show</span>
           <select
             aria-label="Income chart period"
-            value={selected}
-            onChange={(event) => onShortcutChange(event.target.value as Shortcut)}
+            value={period}
+            onChange={(event) => setPeriod(event.target.value as Shortcut)}
             className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
           >
-            {selected === "selected" && <option value="selected">Selected range</option>}
             {shortcuts.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
       </div>
 
       <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-2xl font-bold tabular-nums text-emerald-800">{formatPaiseAsInr(loading ? overviewTotal : chartTotal)}</p>
+        <p className="text-2xl font-bold tabular-nums text-emerald-800">{loading ? "—" : formatPaiseAsInr(chartTotal)}</p>
         <p className="text-xs text-slate-500">{chart?.range.from} to {chart?.range.to}</p>
       </div>
       {loading ? (

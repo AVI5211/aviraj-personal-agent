@@ -3,17 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { OverviewEarningsChart } from "@/components/OverviewEarningsChart";
-import { lastSevenCompleteDaysRange, previousMonthRange, todayInShopTz } from "@/lib/dates";
 import { formatPaiseAsInr } from "@/lib/money";
 import type { AdminOverviewResponse, Period } from "@/lib/types";
 
 export function AdminOverview() {
-  const [initialRange] = useState(() => lastSevenCompleteDaysRange(todayInShopTz()));
-  const [period, setPeriod] = useState<Period>("custom");
-  const [customFrom, setCustomFrom] = useState(initialRange.from);
-  const [customTo, setCustomTo] = useState(initialRange.to);
+  const [period, setPeriod] = useState<Period>("month");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
-  const [chartShortcut, setChartShortcut] = useState<"last7" | "lastMonth" | null>("last7");
 
   const canQuery = period !== "custom" || Boolean(customFrom && customTo);
 
@@ -41,15 +38,13 @@ export function AdminOverview() {
           period={period}
           customFrom={customFrom}
           customTo={customTo}
-          onPeriodChange={(value) => { setChartShortcut(null); setPeriod(value); }}
+          onPeriodChange={setPeriod}
           onCustomFromChange={(value) => {
-            setChartShortcut(null);
             setCustomFrom(value);
             // A single chosen date means "that day", not an incomplete filter.
             if (!customTo) setCustomTo(value);
           }}
           onCustomToChange={(value) => {
-            setChartShortcut(null);
             setCustomTo(value);
             if (!customFrom) setCustomFrom(value);
           }}
@@ -84,28 +79,7 @@ export function AdminOverview() {
             <Card label="Money lent & refundable deposits" value={overview.personalReceivables} />
           </div>
 
-          <OverviewEarningsChart
-            period={period}
-            customFrom={customFrom}
-            customTo={customTo}
-            shortcut={chartShortcut}
-            overviewTotal={overview.monthlyIncome}
-            onShortcutChange={(value) => {
-              if (value === "last7" || value === "lastMonth") {
-                const today = todayInShopTz();
-                let range;
-                if (value === "lastMonth") range = previousMonthRange(today);
-                else range = lastSevenCompleteDaysRange(today);
-                setCustomFrom(range.from);
-                setCustomTo(range.to);
-                setChartShortcut(value);
-                setPeriod("custom");
-              } else {
-                setChartShortcut(null);
-                setPeriod(value);
-              }
-            }}
-          />
+          <OverviewEarningsChart />
 
           <Section title="Income & security deposits">
             <Row
