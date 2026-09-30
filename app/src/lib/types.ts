@@ -282,7 +282,6 @@ export interface AdminOverviewResponse {
   monthlyIncome: number;
   monthlyExpense: number;
   incomeAverage: { label: string; value: number } | null;
-  averageMonthlyExpense: number;
   incomeSources: {
     salary: number;
     salaryInHand: number;

@@ -17,15 +17,6 @@ interface TypeGroupResult {
   total: number;
 }
 
-function completedMonthsInPeriod(period: string, from: string | null): number {
-  if (!from || (period !== "year" && period !== "fy")) return 1;
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
-  const [fromYear, fromMonth] = from.split("-").map(Number);
-  const [todayYear, todayMonth] = today.split("-").map(Number);
-  // Use fully completed months: Jan-August for a September YTD view.
-  return Math.max(1, (todayYear - fromYear) * 12 + todayMonth - fromMonth);
-}
-
 function daysInMonth(month: string): number {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
@@ -270,7 +261,6 @@ export async function GET(request: NextRequest) {
   const netWorth = cashAndBank + investmentsTotal + pfTotal + otherAssetsTotal + personalReceivables - liabilitiesTotal;
 
   const totalIncome = salaryCtc + shopIncome + personalOtherIncome + freelanceIncome;
-  const monthsForAverage = completedMonthsInPeriod(parsed.data.period, range.from);
 
   return NextResponse.json({
     range,
@@ -284,7 +274,6 @@ export async function GET(request: NextRequest) {
     monthlyIncome: totalIncome,
     monthlyExpense: personalExpense,
     incomeAverage,
-    averageMonthlyExpense: Math.round(personalExpense / monthsForAverage),
     incomeSources: {
       salary: salaryCtc,
       salaryInHand,
