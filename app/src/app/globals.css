@@ -14,6 +14,15 @@ body {
   overflow-x: hidden;
 }
 
+/* In the installed PWA, prevent Chrome's pull-to-refresh at the page edge.
+   Keep ordinary scrolling and the gesture in regular browser tabs unchanged. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
 ::selection { background: #bfdbfe; color: #172554; }
 
 button, a, input, select, textarea { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
