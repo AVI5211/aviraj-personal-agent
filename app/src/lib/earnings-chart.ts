@@ -1,5 +1,5 @@
 import { lastSevenCompleteDaysRange, previousMonthRange, resolvePeriod, startOfFinancialYear, startOfMonth, startOfYear, todayInShopTz, type Period } from "@/lib/dates";
-import { ctcPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
+import { ctcPaiseFor, earnedSalaryPaise, type SalaryRecordDoc } from "@/lib/salary";
 import type { ClientDoc, WorkLogDoc } from "@/lib/freelance";
 import type { TransactionDoc } from "@/lib/transactions";
 import { SHOP_DRAW_CATEGORY } from "@/lib/validation";
@@ -68,29 +68,18 @@ export function buildEarningsChart(
   const keyFor = (date: string) => granularity === "day" ? date : date.slice(0, 7);
 
   for (const record of salaries) {
-    if (record.status !== "received") continue;
     const monthlyCtc = ctcPaiseFor(record);
-    if (granularity === "month" && period !== "custom") {
+    if (granularity === "month") {
       const point = points.get(record.month);
-      if (point) point.salary += monthlyCtc;
+      if (point) point.salary += earnedSalaryPaise(record, monthlyCtc, from, to, today);
       continue;
     }
     const [year, month] = record.month.split("-").map(Number);
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    if (granularity === "month") {
-      const point = points.get(record.month);
-      if (!point) continue;
-      const monthFrom = `${record.month}-01`;
-      const monthTo = `${record.month}-${String(daysInMonth).padStart(2, "0")}`;
-      const first = from > monthFrom ? from : monthFrom;
-      const last = to < monthTo ? to : monthTo;
-      const days = Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 86_400_000) + 1;
-      point.salary += Math.round(monthlyCtc * Math.max(0, days) / daysInMonth);
-      continue;
-    }
     const includedDays: string[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const key = `${record.month}-${String(day).padStart(2, "0")}`;
+      if (key > today) break;
       const point = points.get(keyFor(key));
       if (point) {
         includedDays.push(key);
@@ -100,7 +89,7 @@ export function buildEarningsChart(
     }
     // Daily/weekly/custom totals use the Overview's one-rounding-per-record rule.
     if (["today", "yesterday", "week", "last7", "custom"].includes(period) && includedDays.length > 0) {
-      const target = Math.round(monthlyCtc * includedDays.length / daysInMonth);
+      const target = earnedSalaryPaise(record, monthlyCtc, from, to, today);
       const actual = includedDays.reduce((sum, day) => sum + (points.get(keyFor(day))?.salary ?? 0), 0);
       points.get(keyFor(includedDays[includedDays.length - 1]))!.salary += target - actual;
     }

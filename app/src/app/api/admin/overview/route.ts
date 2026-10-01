@@ -6,7 +6,7 @@ import { resolvePeriod, startOfFinancialYear, startOfYear, todayInShopTz } from 
 import { overviewIncomeAverage } from "@/lib/overview-income-average";
 import { buildDateRangeFilter, type TransactionDoc } from "@/lib/transactions";
 import { isLiability, type AccountDoc } from "@/lib/accounts";
-import { ctcPaiseFor, netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
+import { ctcPaiseFor, earnedSalaryPaise, netPaiseFor, type SalaryRecordDoc } from "@/lib/salary";
 import type { InvestmentDoc } from "@/lib/investments";
 import type { LoanDoc } from "@/lib/loans";
 import type { ClientDoc, InvoiceDoc, WorkLogDoc } from "@/lib/freelance";
@@ -15,34 +15,6 @@ import { getFreelanceUsdInrRate } from "@/lib/settings";
 interface TypeGroupResult {
   _id: { module: "shop" | "personal"; type: "income" | "expense"; category: string };
   total: number;
-}
-
-function daysInMonth(month: string): number {
-  const [year, monthNumber] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
-}
-
-function overlappingDays(from: string, to: string, month: string): number {
-  const monthStart = `${month}-01`;
-  const monthEnd = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
-  const overlapStart = from > monthStart ? from : monthStart;
-  const overlapEnd = to < monthEnd ? to : monthEnd;
-  if (overlapStart > overlapEnd) return 0;
-
-  const start = new Date(`${overlapStart}T00:00:00.000Z`);
-  const end = new Date(`${overlapEnd}T00:00:00.000Z`);
-  return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
-}
-
-function proratedSalaryPaise(
-  record: SalaryRecordDoc,
-  valuePaise: number,
-  from: string | null,
-  to: string | null,
-  shouldProrate: boolean
-): number {
-  if (!shouldProrate || !from || !to) return valuePaise;
-  return Math.round((valuePaise * overlappingDays(from, to, record.month)) / daysInMonth(record.month));
 }
 
 function workLogValuePaise(log: WorkLogDoc, client: ClientDoc | undefined, usdInrRate: number): number {
@@ -154,23 +126,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Only records actually received count as income here — an "expected" future month
-  // (e.g. a salary projection through the rest of the financial year) hasn't landed yet.
-  // The headline figure is CTC (what was actually earned, before PF/TDS deductions), since
-  // that's what shows up on Form 16 / ITR — in-hand is kept as a secondary reference only.
-  // Month, year, FY, and all-time show complete recorded monthly CTC. Daily,
-  // weekly, and explicitly custom ranges remain earned-day prorated.
-  const shouldProrateSalary = ["today", "yesterday", "week", "custom"].includes(parsed.data.period);
+  // Salary accrues day by day, even while its payment status is "expected".
+  // Future days are excluded; the Salary page still tracks whether it was paid.
   const salaryCtc = salaryRecords
-    .filter((record) => record.status === "received")
     .reduce(
-      (sum, record) => sum + proratedSalaryPaise(record, ctcPaiseFor(record), range.from, range.to, shouldProrateSalary),
+      (sum, record) => sum + earnedSalaryPaise(record, ctcPaiseFor(record), range.from, range.to, earnedToDate),
       0
     );
   const salaryInHand = salaryRecords
-    .filter((record) => record.status === "received")
     .reduce(
-      (sum, record) => sum + proratedSalaryPaise(record, netPaiseFor(record), range.from, range.to, shouldProrateSalary),
+      (sum, record) => sum + earnedSalaryPaise(record, netPaiseFor(record), range.from, range.to, earnedToDate),
       0
     );
   const clientById = new Map(freelanceClients.map((client) => [client._id.toString(), client]));
@@ -193,8 +158,7 @@ export async function GET(request: NextRequest) {
     }
   }
   const earnedSalaryCtc = earnedSalaryRecords
-    .filter((record) => record.status === "received")
-    .reduce((sum, record) => sum + ctcPaiseFor(record), 0);
+    .reduce((sum, record) => sum + earnedSalaryPaise(record, ctcPaiseFor(record), earnedFromDate, earnedToDate, earnedToDate), 0);
   const earnedFreelanceGross = earnedWorkLogs.reduce(
     (sum, log) => sum + workLogValuePaise(log, clientById.get(log.clientId.toString()), usdInrRate),
     0
@@ -210,7 +174,7 @@ export async function GET(request: NextRequest) {
         { $match: buildDateRangeFilter(from, to) },
         { $group: { _id: { module: "$module", type: "$type", category: "$category" }, total: { $sum: "$amountPaise" } } },
       ]).toArray(),
-      db.collection<SalaryRecordDoc>("salary_records").find({ month: { $gte: from.slice(0, 7), $lte: to.slice(0, 7) }, status: "received" }).toArray(),
+      db.collection<SalaryRecordDoc>("salary_records").find({ month: { $gte: from.slice(0, 7), $lte: to.slice(0, 7) } }).toArray(),
       db.collection<WorkLogDoc>("work_logs").find({ date: { $gte: from, $lte: to } }).toArray(),
     ]);
     const transactionIncome = transactionGroups.reduce((sum, row) => {
@@ -219,7 +183,7 @@ export async function GET(request: NextRequest) {
       return sum + row.total;
     }, 0);
     return transactionIncome
-      + salaries.reduce((sum, record) => sum + ctcPaiseFor(record), 0)
+      + salaries.reduce((sum, record) => sum + earnedSalaryPaise(record, ctcPaiseFor(record), from, to, earnedToDate), 0)
       + workLogs.reduce((sum, log) => sum + workLogValuePaise(log, clientById.get(log.clientId.toString()), usdInrRate), 0);
   }
 

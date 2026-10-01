@@ -42,4 +42,15 @@ describe("Overview income chart", () => {
       from: "2026-09-24", to: "2026-09-30", granularity: "day",
     });
   });
+
+  it("accrues expected October salary through today without showing future days", () => {
+    const october = [{ month: "2026-10", status: "expected", grossPaise: 11018400,
+      pfEmployerPaise: 661100, otherCtcComponentsPaise: 0 }] as SalaryRecordDoc[];
+    const daily = buildEarningsChart("month", "2026-10-02", [], october, [], [], 96);
+    expect(daily.find((point) => point.date === "2026-10-01")?.salary).toBe(376758);
+    expect(daily.find((point) => point.date === "2026-10-02")?.salary).toBe(376758);
+    expect(daily.find((point) => point.date === "2026-10-03")?.salary).toBe(0);
+    const yearly = buildEarningsChart("year", "2026-10-02", [], october, [], [], 96);
+    expect(yearly.find((point) => point.date === "2026-10")?.salary).toBe(753516);
+  });
 });

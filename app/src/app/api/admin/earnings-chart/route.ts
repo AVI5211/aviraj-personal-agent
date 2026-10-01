@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
   const allFirst = parsed.data === "all" ? await Promise.all([
     db.collection<TransactionDoc>("transactions").find({}).sort({ transactionDate: 1 }).limit(1).toArray(),
-    db.collection<SalaryRecordDoc>("salary_records").find({ status: "received" }).sort({ month: 1 }).limit(1).toArray(),
+    db.collection<SalaryRecordDoc>("salary_records").find({}).sort({ month: 1 }).limit(1).toArray(),
     db.collection<WorkLogDoc>("work_logs").find({}).sort({ date: 1 }).limit(1).toArray(),
   ]) : null;
   const allFrom = allFirst ? [allFirst[0][0]?.transactionDate, allFirst[1][0]?.month && `${allFirst[1][0].month}-01`, allFirst[2][0]?.date]
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     db.collection<TransactionDoc>("transactions")
       .find({ transactionDate: { $gte: range.from, $lte: dataTo }, type: "income" }).toArray(),
     db.collection<SalaryRecordDoc>("salary_records")
-      .find({ month: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) }, status: "received" }).toArray(),
+      .find({ month: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).toArray(),
     db.collection<WorkLogDoc>("work_logs").find({ date: { $gte: range.from, $lte: dataTo } }).toArray(),
     db.collection<ClientDoc>("clients").find({}).toArray(),
     getFreelanceUsdInrRate(),

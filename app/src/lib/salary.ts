@@ -38,6 +38,25 @@ export function ctcPaiseFor(
   return doc.grossPaise + doc.pfEmployerPaise + (doc.otherCtcComponentsPaise ?? 0);
 }
 
+/** Salary accrues across its calendar month, whether or not payday has arrived. */
+export function earnedSalaryPaise(
+  record: Pick<SalaryRecordDoc, "month">,
+  monthlyPaise: number,
+  from: string | null,
+  to: string | null,
+  asOf: string
+): number {
+  const [year, month] = record.month.split("-").map(Number);
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const monthStart = `${record.month}-01`;
+  const monthEnd = `${record.month}-${String(daysInMonth).padStart(2, "0")}`;
+  const first = from && from > monthStart ? from : monthStart;
+  const last = [to ?? monthEnd, asOf, monthEnd].sort()[0];
+  if (first > last) return 0;
+  const days = Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 86_400_000) + 1;
+  return Math.round(monthlyPaise * days / daysInMonth);
+}
+
 export function serializeSalaryRecord(doc: SalaryRecordDoc): SalaryRecordApi {
   return {
     id: doc._id.toString(),
