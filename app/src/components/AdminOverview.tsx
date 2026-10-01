@@ -7,7 +7,7 @@ import { formatPaiseAsInr } from "@/lib/money";
 import type { AdminOverviewResponse, Period } from "@/lib/types";
 
 export function AdminOverview() {
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<Period>("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
