@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatPaiseAsInr, paiseToRupees } from "@/lib/money";
 import type { EarningsChartPoint } from "@/lib/earnings-chart";
 
@@ -22,9 +22,41 @@ const shortcuts: { value: Shortcut; label: string }[] = [
 
 function shortAmount(paise: number) {
   const rupees = paiseToRupees(paise);
-  if (rupees >= 100000) return `₹${(rupees / 100000).toFixed(1)}L`;
-  if (rupees >= 1000) return `₹${Math.round(rupees / 1000)}k`;
+  if (Math.abs(rupees) >= 100000) return `₹${(rupees / 100000).toFixed(1)}L`;
+  if (Math.abs(rupees) >= 1000) return `₹${(rupees / 1000).toFixed(1).replace(/\.0$/, "")}K`;
   return `₹${Math.round(rupees)}`;
+}
+
+function chartDateLabel(date: string, granularity: "day" | "month") {
+  const parsed = new Date(`${granularity === "day" ? date : `${date}-01`}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    day: granularity === "day" ? "2-digit" : undefined,
+    month: "short",
+  }).format(parsed);
+}
+
+type Segment = "Salary" | "Freelance" | "Shop" | "Personal";
+
+function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>, segment: Segment) {
+  return ({ x, y, width, index }: { x?: number | string; y?: number | string; width?: number | string; index?: number }) => {
+    const point = data[index ?? -1];
+    if (!point || point.total <= 0) return null;
+    const topSegment = (["Personal", "Shop", "Freelance", "Salary"] as Segment[]).find((key) => point[key] > 0);
+    if (topSegment !== segment) return null;
+    return (
+      <text
+        x={Number(x) + Number(width) / 2}
+        y={Number(y) - 9}
+        textAnchor="middle"
+        fill="#0f172a"
+        fontSize={11}
+        fontWeight={700}
+      >
+        {shortAmount(point.total)}
+      </text>
+    );
+  };
 }
 
 export function OverviewEarningsChart() {
@@ -53,13 +85,14 @@ export function OverviewEarningsChart() {
   const chartTotal = points.reduce((sum, point) => sum + point.total, 0);
   const data = points.map((point) => ({
     ...point,
-    label: chart?.range.granularity === "day" ? point.date.slice(8) : point.date.slice(5),
+    label: chartDateLabel(point.date, chart?.range.granularity ?? "day"),
     Salary: paiseToRupees(point.salary),
     Freelance: paiseToRupees(point.freelance),
     Shop: paiseToRupees(point.shop),
     Personal: paiseToRupees(point.personal),
   }));
   const hasIncome = chartTotal > 0;
+  const chartMinWidth = Math.max(320, points.length * 44 + 56);
 
   return (
     <section className="mb-6 min-w-0 rounded-xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="Income trend">
@@ -92,19 +125,21 @@ export function OverviewEarningsChart() {
       ) : !hasIncome ? (
         <p className="py-12 text-center text-sm text-slate-500">No income recorded in this period.</p>
       ) : (
-        <div className="h-64 w-full min-w-0 sm:h-72" role="img" aria-label={`Income chart with ${points.length} ${chart?.range.granularity === "day" ? "daily" : "monthly"} bars, totaling ${formatPaiseAsInr(chartTotal)}`}>
+        <div className="w-full min-w-0 overflow-x-auto pb-1" role="img" aria-label={`Income chart with ${points.length} ${chart?.range.granularity === "day" ? "daily" : "monthly"} bars, totaling ${formatPaiseAsInr(chartTotal)}`}>
+          <div className="h-72 w-full sm:h-80" style={{ minWidth: chartMinWidth }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }} barCategoryGap="18%" accessibilityLayer>
-              <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="label" interval={points.length > 20 ? 4 : 0} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-              <YAxis width={52} tickFormatter={(value: number) => shortAmount(Math.round(value * 100))} tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
+            <BarChart data={data} margin={{ top: 30, right: 12, left: 0, bottom: 12 }} barCategoryGap="24%" accessibilityLayer>
+              <CartesianGrid vertical={false} stroke="#e2e8f0" />
+              <XAxis dataKey="label" interval={0} height={38} tick={{ fontSize: 11, fill: "#475569" }} tickLine={false} axisLine={{ stroke: "#cbd5e1" }} />
+              <YAxis width={52} domain={[0, (max: number) => Math.ceil(max * 1.18)]} tickFormatter={(value: number) => shortAmount(Math.round(value * 100))} tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
               <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""} formatter={(value: number, name: string) => [formatPaiseAsInr(Math.round(value * 100)), name]} />
-              <Bar dataKey="Salary" stackId="income" fill="#047857" isAnimationActive={false} />
-              <Bar dataKey="Freelance" stackId="income" fill="#2563eb" isAnimationActive={false} />
-              <Bar dataKey="Shop" stackId="income" fill="#d97706" isAnimationActive={false} />
-              <Bar dataKey="Personal" stackId="income" fill="#7c3aed" isAnimationActive={false} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="Salary" stackId="income" fill="#047857" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Salary")} /></Bar>
+              <Bar dataKey="Freelance" stackId="income" fill="#2563eb" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Freelance")} /></Bar>
+              <Bar dataKey="Shop" stackId="income" fill="#d97706" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Shop")} /></Bar>
+              <Bar dataKey="Personal" stackId="income" fill="#7c3aed" isAnimationActive={false} radius={[3, 3, 0, 0]}><LabelList content={totalLabelFor(data, "Personal")} /></Bar>
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Income sources">
