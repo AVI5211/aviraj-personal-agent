@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatPaiseAsInr, paiseToRupees } from "@/lib/money";
 import type { EarningsChartPoint } from "@/lib/earnings-chart";
@@ -38,10 +38,10 @@ function chartDateLabel(date: string, granularity: "day" | "month") {
 
 type Segment = "Salary" | "Freelance" | "Shop" | "Personal";
 
-function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>, segment: Segment) {
+function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>, segment: Segment, labelStep: number, fontSize: number) {
   return ({ x, y, width, index }: { x?: number | string; y?: number | string; width?: number | string; index?: number }) => {
     const point = data[index ?? -1];
-    if (!point || point.total <= 0) return null;
+    if (!point || point.total <= 0 || (index ?? 0) % labelStep !== 0) return null;
     const topSegment = (["Personal", "Shop", "Freelance", "Salary"] as Segment[]).find((key) => point[key] > 0);
     if (topSegment !== segment) return null;
     return (
@@ -50,7 +50,7 @@ function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>,
         y={Number(y) - 9}
         textAnchor="middle"
         fill="#0f172a"
-        fontSize={11}
+        fontSize={fontSize}
         fontWeight={700}
       >
         {shortAmount(point.total)}
@@ -60,10 +60,25 @@ function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>,
 }
 
 export function OverviewEarningsChart() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [chartWidth, setChartWidth] = useState(320);
   const [period, setPeriod] = useState<Shortcut>("last7");
   const [chart, setChart] = useState<ChartResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const resize = () => {
+      const style = getComputedStyle(section);
+      setChartWidth(section.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,10 +107,14 @@ export function OverviewEarningsChart() {
     Personal: paiseToRupees(point.personal),
   }));
   const hasIncome = chartTotal > 0;
-  const chartMinWidth = Math.max(320, points.length * 44 + 56);
+  const compact = chartWidth < 480;
+  const axisWidth = compact ? 40 : 52;
+  const plotWidth = Math.max(1, chartWidth - axisWidth - (compact ? 8 : 12));
+  const labelStep = Math.max(1, Math.ceil(points.length * (compact ? 32 : 44) / plotWidth));
+  const labelFontSize = compact ? 9 : 11;
 
   return (
-    <section className="mb-6 min-w-0 rounded-xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="Income trend">
+    <section ref={sectionRef} className="mb-6 min-w-0 rounded-xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="Income trend">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Income trend</h2>
@@ -125,18 +144,18 @@ export function OverviewEarningsChart() {
       ) : !hasIncome ? (
         <p className="py-12 text-center text-sm text-slate-500">No income recorded in this period.</p>
       ) : (
-        <div className="w-full min-w-0 overflow-x-auto pb-1" role="img" aria-label={`Income chart with ${points.length} ${chart?.range.granularity === "day" ? "daily" : "monthly"} bars, totaling ${formatPaiseAsInr(chartTotal)}`}>
-          <div className="h-72 w-full sm:h-80" style={{ minWidth: chartMinWidth }}>
+        <div className="w-full min-w-0 pb-1" role="img" aria-label={`Income chart with ${points.length} ${chart?.range.granularity === "day" ? "daily" : "monthly"} bars, totaling ${formatPaiseAsInr(chartTotal)}`}>
+          <div className="h-72 w-full min-w-0 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 30, right: 12, left: 0, bottom: 12 }} barCategoryGap="24%" accessibilityLayer>
+            <BarChart data={data} margin={{ top: 30, right: compact ? 8 : 12, left: 0, bottom: 12 }} barCategoryGap={points.length > 14 ? "12%" : "24%"} accessibilityLayer>
               <CartesianGrid vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="label" interval={0} height={38} tick={{ fontSize: 11, fill: "#475569" }} tickLine={false} axisLine={{ stroke: "#cbd5e1" }} />
-              <YAxis width={52} domain={[0, (max: number) => Math.ceil(max * 1.18)]} tickFormatter={(value: number) => shortAmount(Math.round(value * 100))} tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
+              <XAxis dataKey="label" interval={labelStep - 1} height={38} tick={{ fontSize: labelFontSize, fill: "#475569" }} tickLine={false} axisLine={{ stroke: "#cbd5e1" }} />
+              <YAxis width={axisWidth} domain={[0, (max: number) => Math.ceil(max * 1.18)]} tickFormatter={(value: number) => shortAmount(Math.round(value * 100))} tick={{ fontSize: compact ? 9 : 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
               <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""} formatter={(value: number, name: string) => [formatPaiseAsInr(Math.round(value * 100)), name]} />
-              <Bar dataKey="Salary" stackId="income" fill="#047857" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Salary")} /></Bar>
-              <Bar dataKey="Freelance" stackId="income" fill="#2563eb" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Freelance")} /></Bar>
-              <Bar dataKey="Shop" stackId="income" fill="#d97706" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Shop")} /></Bar>
-              <Bar dataKey="Personal" stackId="income" fill="#7c3aed" isAnimationActive={false} radius={[3, 3, 0, 0]}><LabelList content={totalLabelFor(data, "Personal")} /></Bar>
+              <Bar dataKey="Salary" stackId="income" fill="#047857" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Salary", labelStep, labelFontSize)} /></Bar>
+              <Bar dataKey="Freelance" stackId="income" fill="#2563eb" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Freelance", labelStep, labelFontSize)} /></Bar>
+              <Bar dataKey="Shop" stackId="income" fill="#d97706" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Shop", labelStep, labelFontSize)} /></Bar>
+              <Bar dataKey="Personal" stackId="income" fill="#7c3aed" isAnimationActive={false} radius={[3, 3, 0, 0]}><LabelList content={totalLabelFor(data, "Personal", labelStep, labelFontSize)} /></Bar>
             </BarChart>
           </ResponsiveContainer>
           </div>
