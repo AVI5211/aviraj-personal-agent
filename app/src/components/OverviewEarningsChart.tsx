@@ -38,22 +38,26 @@ function chartDateLabel(date: string, granularity: "day" | "month") {
 
 type Segment = "Salary" | "Freelance" | "Shop" | "Personal";
 
-function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>, segment: Segment, labelStep: number, fontSize: number) {
-  return ({ x, y, width, index }: { x?: number | string; y?: number | string; width?: number | string; index?: number }) => {
+function totalLabelFor(data: Array<Record<Segment, number> & { total: number }>, segment: Segment, dense: boolean, fontSize: number) {
+  return function IncomeTotalLabel({ x, y, width, index }: { x?: number | string; y?: number | string; width?: number | string; index?: number }) {
     const point = data[index ?? -1];
-    if (!point || point.total <= 0 || (index ?? 0) % labelStep !== 0) return null;
+    if (!point || point.total <= 0) return null;
     const topSegment = (["Personal", "Shop", "Freelance", "Salary"] as Segment[]).find((key) => point[key] > 0);
     if (topSegment !== segment) return null;
+    const center = Number(x) + Number(width) / 2;
+    const top = Number(y) - 7;
     return (
       <text
-        x={Number(x) + Number(width) / 2}
-        y={Number(y) - 9}
-        textAnchor="middle"
+        x={center}
+        y={top}
+        textAnchor={dense ? "start" : "middle"}
+        transform={dense ? `rotate(-90 ${center} ${top})` : undefined}
         fill="#0f172a"
         fontSize={fontSize}
         fontWeight={700}
+        pointerEvents="none"
       >
-        {shortAmount(point.total)}
+        {dense ? shortAmount(point.total).replace("₹", "") : shortAmount(point.total)}
       </text>
     );
   };
@@ -111,7 +115,8 @@ export function OverviewEarningsChart() {
   const axisWidth = compact ? 40 : 52;
   const plotWidth = Math.max(1, chartWidth - axisWidth - (compact ? 8 : 12));
   const labelStep = Math.max(1, Math.ceil(points.length * (compact ? 32 : 44) / plotWidth));
-  const labelFontSize = compact ? 9 : 11;
+  const dense = points.length > 14;
+  const labelFontSize = dense ? (compact ? 8 : 9) : (compact ? 9 : 11);
 
   return (
     <section ref={sectionRef} className="mb-6 min-w-0 rounded-xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="Income trend">
@@ -147,15 +152,29 @@ export function OverviewEarningsChart() {
         <div className="w-full min-w-0 pb-1" role="img" aria-label={`Income chart with ${points.length} ${chart?.range.granularity === "day" ? "daily" : "monthly"} bars, totaling ${formatPaiseAsInr(chartTotal)}`}>
           <div className="h-72 w-full min-w-0 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 30, right: compact ? 8 : 12, left: 0, bottom: 12 }} barCategoryGap={points.length > 14 ? "12%" : "24%"} accessibilityLayer>
+            <BarChart data={data} margin={{ top: dense ? 52 : 30, right: compact ? 8 : 12, left: 0, bottom: 12 }} barCategoryGap={dense ? "12%" : "24%"} accessibilityLayer>
               <CartesianGrid vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="label" interval={labelStep - 1} height={38} tick={{ fontSize: labelFontSize, fill: "#475569" }} tickLine={false} axisLine={{ stroke: "#cbd5e1" }} />
               <YAxis width={axisWidth} domain={[0, (max: number) => Math.ceil(max * 1.18)]} tickFormatter={(value: number) => shortAmount(Math.round(value * 100))} tick={{ fontSize: compact ? 9 : 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
-              <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""} formatter={(value: number, name: string) => [formatPaiseAsInr(Math.round(value * 100)), name]} />
-              <Bar dataKey="Salary" stackId="income" fill="#047857" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Salary", labelStep, labelFontSize)} /></Bar>
-              <Bar dataKey="Freelance" stackId="income" fill="#2563eb" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Freelance", labelStep, labelFontSize)} /></Bar>
-              <Bar dataKey="Shop" stackId="income" fill="#d97706" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Shop", labelStep, labelFontSize)} /></Bar>
-              <Bar dataKey="Personal" stackId="income" fill="#7c3aed" isAnimationActive={false} radius={[3, 3, 0, 0]}><LabelList content={totalLabelFor(data, "Personal", labelStep, labelFontSize)} /></Bar>
+              <Tooltip
+                cursor={false}
+                content={({ active, payload }) => {
+                  const point = payload?.[0]?.payload as (typeof data)[number] | undefined;
+                  if (!active || !point || point.total <= 0) return null;
+                  return (
+                    <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-md">
+                      <p className="mb-1 font-semibold text-slate-900">{point.date} · {formatPaiseAsInr(point.total)}</p>
+                      {(["Salary", "Freelance", "Shop", "Personal"] as Segment[]).filter((key) => point[key] > 0).map((key) => (
+                        <p key={key} className="text-slate-600">{key}: {formatPaiseAsInr(Math.round(point[key] * 100))}</p>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="Salary" stackId="income" fill="#047857" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Salary", dense, labelFontSize)} /></Bar>
+              <Bar dataKey="Freelance" stackId="income" fill="#2563eb" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Freelance", dense, labelFontSize)} /></Bar>
+              <Bar dataKey="Shop" stackId="income" fill="#d97706" isAnimationActive={false}><LabelList content={totalLabelFor(data, "Shop", dense, labelFontSize)} /></Bar>
+              <Bar dataKey="Personal" stackId="income" fill="#7c3aed" isAnimationActive={false} radius={[3, 3, 0, 0]}><LabelList content={totalLabelFor(data, "Personal", dense, labelFontSize)} /></Bar>
             </BarChart>
           </ResponsiveContainer>
           </div>
