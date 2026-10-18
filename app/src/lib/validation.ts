@@ -306,12 +306,15 @@ export const createInvoiceSchema = z.object({
   exchangeRateToInr: z.number().positive(),
 });
 
-export const updateInvoiceSchema = z.object({
-  status: z.literal("paid"),
-  netInrPaise: z.number().int().min(0),
-  taxPaidPaise: z.number().int().min(0).default(0),
-  paidDate: dateString,
-});
+export const updateInvoiceSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("paid"),
+    netInrPaise: z.number().int().min(0),
+    taxPaidPaise: z.number().int().min(0).default(0),
+    paidDate: dateString,
+  }),
+  z.object({ status: z.literal("issued") }),
+]);
 
 export const createQuickInvoiceSchema = z.object({
   clientId: z.string().min(1),

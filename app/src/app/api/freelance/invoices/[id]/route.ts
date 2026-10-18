@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { updateInvoiceSchema } from "@/lib/validation";
-import { serializeInvoice, type InvoiceDoc } from "@/lib/freelance";
+import { computeNetInrPaise, serializeInvoice, type InvoiceDoc } from "@/lib/freelance";
 import { parseObjectId } from "@/lib/transactions";
 
 interface RouteParams {
@@ -26,20 +26,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!existing) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
-  if (existing.status === "paid") {
-    return NextResponse.json({ error: "Invoice is already marked paid" }, { status: 409 });
+  if (existing.status === parsed.data.status) {
+    return NextResponse.json({ error: `Invoice is already ${existing.status}` }, { status: 409 });
   }
 
   const result = await db.collection<InvoiceDoc>("invoices").findOneAndUpdate(
-    { _id: objectId },
+    { _id: objectId, status: existing.status },
     {
-      $set: {
-        status: "paid",
-        netInrPaise: parsed.data.netInrPaise,
-        taxPaidPaise: parsed.data.taxPaidPaise,
-        paidDate: parsed.data.paidDate,
-        updatedAt: new Date(),
-      },
+      $set: parsed.data.status === "paid"
+        ? {
+            status: "paid",
+            netInrPaise: parsed.data.netInrPaise,
+            taxPaidPaise: parsed.data.taxPaidPaise,
+            paidDate: parsed.data.paidDate,
+            updatedAt: new Date(),
+          }
+        : {
+            status: "issued",
+            netInrPaise: computeNetInrPaise(existing.grossAmountMinor, existing.feesMinor, existing.exchangeRateToInr),
+            taxPaidPaise: 0,
+            paidDate: null,
+            updatedAt: new Date(),
+          },
     },
     { returnDocument: "after" }
   );
