@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PeriodFilter } from "@/components/PeriodFilter";
@@ -127,7 +128,10 @@ export function VehiclesManager() {
     [dashboard]
   );
   const visibleLogs = (dashboard?.logs ?? []).filter((log) => view === ALL_VIEW || log.vehicleId === view);
-  const viewOptions = [...vehicles.map((v) => ({ id: v.id, label: v.name, hint: v.kind === "ev" ? "EV" : "Petrol" })), { id: ALL_VIEW, label: "Both", hint: "Compare" }];
+  const viewOptions: { id: string; label: string; kinds: VehicleApi["kind"][] }[] = [
+    ...vehicles.map((v) => ({ id: v.id, label: v.name, kinds: [v.kind] })),
+    { id: ALL_VIEW, label: "Both", kinds: vehicles.map((v) => v.kind) },
+  ];
 
   return (
     <div>
@@ -212,8 +216,12 @@ export function VehiclesManager() {
                   }}
                   className={`min-h-12 min-w-0 rounded-lg border px-2 py-2 text-center text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-wait ${selected ? "border-emerald-600 bg-emerald-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50"}`}
                 >
-                  <span className="block truncate">{option.label}</span>
-                  <span className={`block text-[11px] font-medium ${selected ? "text-emerald-50" : "text-slate-500"}`}>{option.hint}</span>
+                  <span className="flex h-12 items-center justify-center gap-0.5 sm:h-16">
+                    {option.kinds.map((kind, index) => (
+                      <VehicleArt key={index} kind={kind} className={option.kinds.length > 1 ? "h-full w-1/2 max-w-24" : "h-full w-full max-w-36"} />
+                    ))}
+                  </span>
+                  <span className={`mt-1 block truncate text-xs font-semibold ${selected ? "text-white" : "text-slate-700"}`}>{option.label}</span>
                 </button>
               );
             })}
@@ -331,6 +339,17 @@ export function VehiclesManager() {
       )}
     </div>
   );
+}
+
+const VEHICLE_IMAGES: Record<VehicleApi["kind"], { src: string; alt: string; width: number; height: number }> = {
+  ev: { src: "/vehicles/harrier-ev.webp", alt: "Harrier EV in Pristine White", width: 428, height: 236 },
+  petrol: { src: "/vehicles/hunter-350.webp", alt: "Hunter 350 in Tokyo Black", width: 480, height: 284 },
+};
+
+/** Transparent cut-out photo of the vehicle. */
+function VehicleArt({ kind, className }: { kind: VehicleApi["kind"]; className?: string }) {
+  const image = VEHICLE_IMAGES[kind];
+  return <Image src={image.src} alt={image.alt} width={image.width} height={image.height} className={`object-contain ${className ?? ""}`} />;
 }
 
 function StatCard({ label, value, detail, tone }: { label: string; value: string; detail?: string; tone?: "negative" }) {
@@ -466,9 +485,9 @@ function VehicleTrendChart({ dashboard, vehicles }: { dashboard: VehiclesDashboa
           <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={(value: number) => (value >= 1000 ? `${formatNumber(value / 1000, 1)}k` : String(value))} />
           <Tooltip
             labelFormatter={(_label, payload) => String(payload?.[0]?.payload?.label ?? _label)}
-            formatter={(value: number, name: string, item) => {
-              const km = item?.payload?.[`${name} km`];
-              return [`₹${value.toLocaleString("en-IN")}${km ? ` · ${formatNumber(Number(km), 0)} km` : ""}`, name];
+            formatter={(value, name, item) => {
+              const km = item?.payload?.[`${String(name)} km`];
+              return [`₹${Number(value).toLocaleString("en-IN")}${km ? ` · ${formatNumber(Number(km), 0)} km` : ""}`, String(name)];
             }}
           />
           {vehicles.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
