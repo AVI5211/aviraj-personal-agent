@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/investments", label: "Investments" },
   { href: "/loans", label: "Loans" },
   { href: "/freelance", label: "Freelance" },
+  { href: "/vehicles", label: "Vehicles" },
 ];
 
 export function NavBar() {

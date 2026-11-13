@@ -83,3 +83,28 @@ export async function setDefaultFreelanceClientId(clientId: string): Promise<voi
     { upsert: true }
   );
 }
+
+interface VehicleViewDoc {
+  _id: string;
+  view: string;
+  updatedAt: Date;
+}
+
+const VEHICLE_VIEW_ID = "vehicle_view";
+export const ALL_VEHICLES_VIEW = "all";
+
+/** The vehicle (or "all") the Vehicles page opens on, shared across phone and web. */
+export async function getVehicleView(): Promise<string | null> {
+  const db = await getDb();
+  const doc = await db.collection<VehicleViewDoc>("settings").findOne({ _id: VEHICLE_VIEW_ID });
+  return doc?.view ?? null;
+}
+
+export async function setVehicleView(view: string): Promise<void> {
+  const db = await getDb();
+  await db.collection<VehicleViewDoc>("settings").updateOne(
+    { _id: VEHICLE_VIEW_ID },
+    { $set: { view, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}

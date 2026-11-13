@@ -366,3 +366,50 @@ export const freelanceSummaryQuerySchema = z.object({
   from: dateString.optional(),
   to: dateString.optional(),
 });
+
+export const VEHICLE_KINDS = ["ev", "petrol"] as const;
+export const CHARGER_TYPES = ["home", "public_ac", "dc_fast"] as const;
+export const HOME_CHARGE_INPUTS = ["kwh", "soc"] as const;
+
+export const updateVehicleSchema = z
+  .object({
+    name: z.string().trim().min(1).max(60),
+    registrationNumber: z.string().trim().max(20),
+    trackingStartDate: dateString,
+    startOdometerKm: z.number().min(0).max(2_000_000).nullable(),
+    tankCapacityLitres: z.number().positive().max(200).nullable(),
+    batteryCapacityKwh: z.number().positive().max(300).nullable(),
+    homeTariffPaisePerKwh: z.number().int().min(0).max(10_000).nullable(),
+    homeChargeInput: z.enum(HOME_CHARGE_INPUTS),
+  })
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, { message: "At least one field must be provided" });
+
+const vehicleLogFields = {
+  date: dateString,
+  odometerKm: z.number().min(0).max(2_000_000),
+  quantity: z.number().positive().max(1000),
+  amountPaise: z.number().int().min(0).max(10_000_000),
+  fullTank: z.boolean().default(false),
+  chargerType: z.enum(CHARGER_TYPES).nullable().default(null),
+  socStartPct: z.number().min(0).max(100).nullable().default(null),
+  socEndPct: z.number().min(0).max(100).nullable().default(null),
+  quantityEstimated: z.boolean().default(false),
+  location: z.string().trim().max(100).default(""),
+  note: z.string().trim().max(500).default(""),
+};
+
+function socOrderIsValid(data: { socStartPct?: number | null; socEndPct?: number | null }): boolean {
+  return data.socStartPct == null || data.socEndPct == null || data.socEndPct > data.socStartPct;
+}
+
+export const createVehicleLogSchema = z
+  .object({ vehicleId: z.string().min(1), ...vehicleLogFields })
+  .refine(socOrderIsValid, { message: "Battery % after charging must be higher than before", path: ["socEndPct"] });
+
+export const updateVehicleLogSchema = z.object(vehicleLogFields).refine(socOrderIsValid, {
+  message: "Battery % after charging must be higher than before",
+  path: ["socEndPct"],
+});
+
+export const vehiclesDashboardQuerySchema = freelanceSummaryQuerySchema;

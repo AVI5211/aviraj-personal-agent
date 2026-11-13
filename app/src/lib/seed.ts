@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
 import { ensureOpeningBalanceSeeded } from "@/lib/settings";
 import { getEnv } from "@/lib/env";
+import { todayInShopTz } from "@/lib/dates";
+import { DEFAULT_VEHICLES } from "@/lib/vehicles";
 
 let seeded = false;
 
@@ -31,4 +33,22 @@ export async function ensureSeeded(): Promise<void> {
   await ensureOpeningBalanceSeeded(env.openingBalancePaise);
 
   seeded = true;
+}
+
+let vehiclesSeeded = false;
+
+/** Creates the Harrier EV and Hunter 350 once; tracking starts on the day they are created. */
+export async function ensureVehiclesSeeded(): Promise<void> {
+  if (vehiclesSeeded) return;
+  await ensureSeeded();
+  const db = await getDb();
+  const now = new Date();
+  for (const vehicle of DEFAULT_VEHICLES) {
+    await db.collection("vehicles").updateOne(
+      { seedKey: vehicle.seedKey },
+      { $setOnInsert: { ...vehicle, trackingStartDate: todayInShopTz(now), createdAt: now, updatedAt: now } },
+      { upsert: true }
+    );
+  }
+  vehiclesSeeded = true;
 }

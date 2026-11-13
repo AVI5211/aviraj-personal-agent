@@ -52,6 +52,10 @@ export async function ensureIndexes(): Promise<void> {
   await db.collection("invoices").createIndex({ clientId: 1, status: 1 });
   await db.collection("invoices").createIndex({ issueDate: 1 });
   await db.collection("lead_expenses").createIndex({ date: 1 });
+  await db
+    .collection("vehicles")
+    .createIndex({ seedKey: 1 }, { unique: true, partialFilterExpression: { seedKey: { $type: "string" } } });
+  await db.collection("vehicle_logs").createIndex({ vehicleId: 1, date: 1 });
 
   indexesEnsured = true;
 }

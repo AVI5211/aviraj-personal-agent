@@ -294,3 +294,76 @@ export interface AdminOverviewResponse {
   receivables: number;
   personalReceivables: number;
 }
+
+export type VehicleKind = "ev" | "petrol";
+export type ChargerType = "home" | "public_ac" | "dc_fast";
+/** How home charging sessions are entered for an EV: exact kWh, or battery % before/after. */
+export type HomeChargeInput = "kwh" | "soc";
+
+export interface VehicleApi {
+  id: string;
+  name: string;
+  kind: VehicleKind;
+  registrationNumber: string;
+  trackingStartDate: string;
+  startOdometerKm: number | null;
+  tankCapacityLitres: number | null;
+  batteryCapacityKwh: number | null;
+  homeTariffPaisePerKwh: number | null;
+  homeChargeInput: HomeChargeInput;
+}
+
+export interface VehicleLogApi {
+  id: string;
+  vehicleId: string;
+  date: string;
+  odometerKm: number;
+  /** Litres for petrol, kWh for EV. */
+  quantity: number;
+  amountPaise: number;
+  fullTank: boolean;
+  chargerType: ChargerType | null;
+  socStartPct: number | null;
+  socEndPct: number | null;
+  quantityEstimated: boolean;
+  location: string;
+  note: string;
+  /** Km since the previous entry (or the tracking-start odometer). */
+  distanceKm: number | null;
+  /** km/L for petrol (full tank to full tank), km/kWh for EV. */
+  efficiency: number | null;
+}
+
+export interface VehicleChargerSplit {
+  quantity: number;
+  amountPaise: number;
+}
+
+export interface VehicleSummary {
+  vehicleId: string;
+  entries: number;
+  spendPaise: number;
+  quantity: number;
+  kmDriven: number;
+  efficiency: number | null;
+  avgUnitPricePaise: number | null;
+  costPerKmPaise: number | null;
+  latestOdometerKm: number | null;
+  monthlySpendPaise: number | null;
+  monthlyKm: number | null;
+  byChargerType: Record<ChargerType, VehicleChargerSplit> | null;
+}
+
+export interface VehicleTrendPoint {
+  month: string;
+  spendPaise: Record<string, number>;
+  km: Record<string, number>;
+}
+
+export interface VehiclesDashboardResponse {
+  range: { from: string | null; to: string | null };
+  vehicles: VehicleApi[];
+  summaries: VehicleSummary[];
+  logs: VehicleLogApi[];
+  trend: VehicleTrendPoint[];
+}
