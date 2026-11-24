@@ -87,6 +87,17 @@ export interface SalaryRecordApi {
   updatedAt: string;
 }
 
+export interface SalarySlipApi {
+  id: string;
+  month: string;
+  grossPaise: number;
+  deductionsPaise: number;
+  netPaise: number;
+  fileName: string;
+  sizeBytes: number;
+  updatedAt: string;
+}
+
 export interface SalaryOverviewResponse {
   totalGrossPaise: number;
   totalCtcPaise: number;

@@ -17,6 +17,12 @@ function required(name: string): string {
 
 let cached: Env | null = null;
 
+// SALARY_SPIKE=true swaps the Salary page for the V2 (salary slips) page; anything else
+// keeps the original page. Read per request so flipping the env var needs no rebuild.
+export function isSalarySpikeEnabled(): boolean {
+  return (process.env.SALARY_SPIKE ?? "").trim().toLowerCase() === "true";
+}
+
 // Validated lazily (on first real use inside a request) rather than at module
 // load time, so `next build` can statically analyze route modules without
 // runtime secrets being present in the build environment.
