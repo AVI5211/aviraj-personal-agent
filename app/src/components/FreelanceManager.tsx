@@ -746,10 +746,14 @@ export function FreelanceManager() {
   }
 
   async function handleMarkPaid(invoice: InvoiceApi) {
-    const netInput = window.prompt("Net INR received (rupees)", "");
+    // Prefill with the invoice's estimated net so pressing OK never saves ₹0 by accident.
+    const netInput = window.prompt("Net INR received (rupees)", String(invoice.netInrPaise / 100));
     if (netInput === null) return;
     const net = Number(netInput);
-    if (!Number.isFinite(net) || net < 0) return;
+    if (netInput.trim() === "" || !Number.isFinite(net) || net <= 0) {
+      setError("Enter the net INR amount received to mark this invoice paid");
+      return;
+    }
     const taxInput = window.prompt("Tax paid on this invoice (rupees, 0 if none)", "0");
     if (taxInput === null) return;
     const tax = Number(taxInput);

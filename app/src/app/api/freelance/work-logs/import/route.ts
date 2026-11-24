@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
   const maxDateByEpicName = new Map<string, string>();
   const existingSignatures = new Set<string>();
   for (const log of existingLogs) {
+    // An empty 0h entry (e.g. a blank manual log) isn't real work and must not block imports.
+    if (log.billableHours <= 0 && log.nonBillableHours <= 0) continue;
     const epicName = log.epicId ? epicNameById.get(log.epicId.toString()) : undefined;
     if (epicName) {
       const key = normalizeEpicName(epicName);
