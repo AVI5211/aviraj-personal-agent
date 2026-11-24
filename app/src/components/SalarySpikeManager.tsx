@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import type { SalarySlipApi } from "@/lib/types";
+import type { ParsedSalarySlip } from "@/lib/salary-slip-parse";
 import { formatPaiseAsInr } from "@/lib/money";
 import { financialYearLabel, startOfFinancialYear, todayInShopTz } from "@/lib/dates";
 
@@ -26,30 +27,44 @@ function inPeriod(month: string, periodKey: string): boolean {
   return kind === "fy" ? fyStartYearOf(month) === Number(value) : month.startsWith(`${value}-`);
 }
 
+function paiseToInput(paise: number | null): string {
+  return paise === null ? "" : String(paise / 100);
+}
+
+function inputToPaise(value: string): number | null {
+  if (value.trim() === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : null;
+}
+
+type ParseResponseItem = { fileName: string } & ((ParsedSalarySlip & { ok: true }) | { ok: false; error: string });
+
+interface PendingSlip {
+  key: string;
+  file: File;
+  month: string;
+  gross: string;
+  deductions: string;
+  warnings: string[];
+  readError: string | null;
+  state: "ready" | "saving" | "saved" | "failed";
+  saveError: string | null;
+}
+
 export function SalarySpikeManager() {
   const [slips, setSlips] = useState<SalarySlipApi[]>([]);
   const [periodKey, setPeriodKey] = useState(`fy:${startOfFinancialYear(todayInShopTz()).slice(0, 4)}`);
   const [viewing, setViewing] = useState<SalarySlipApi | null>(null);
 
-  const [month, setMonth] = useState(currentMonthValue());
-  const [gross, setGross] = useState("");
-  const [deductions, setDeductions] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [pending, setPending] = useState<PendingSlip[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   async function fetchSlips() {
     const response = await fetch("/api/salary-slips");
-    if (!response.ok) return;
-    const data: { salarySlips: SalarySlipApi[] } = await response.json();
-    setSlips(data.salarySlips);
-    // Slips usually repeat month to month, so carry the latest figures into the form once.
-    const latest = data.salarySlips[0];
-    if (latest) {
-      setGross((current) => current || String(latest.grossPaise / 100));
-      setDeductions((current) => current || String(latest.deductionsPaise / 100));
-    }
+    if (response.ok) setSlips((await response.json()).salarySlips);
   }
 
   useEffect(() => {
@@ -63,32 +78,81 @@ export function SalarySpikeManager() {
     return () => window.removeEventListener("keydown", onKey);
   }, [viewing]);
 
-  async function handleUpload(event: FormEvent) {
-    event.preventDefault();
+  /** Reads month and totals out of the chosen PDFs; nothing is saved until "Save all". */
+  async function handleFilesChosen(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return;
     setError(null);
-    if (!file) {
-      setError("Choose the PDF slip for this month");
-      return;
-    }
-    const existing = slips.find((s) => s.month === month);
-    if (existing && !window.confirm(`Replace the slip already saved for ${monthLabel(month)}?`)) return;
-
+    setReading(true);
     const body = new FormData();
-    body.set("month", month);
-    body.set("gross", gross);
-    body.set("deductions", deductions);
-    body.set("file", file);
-
-    setSubmitting(true);
-    const response = await fetch("/api/salary-slips", { method: "POST", body });
-    setSubmitting(false);
+    files.forEach((file) => body.append("files", file));
+    const response = await fetch("/api/salary-slips/parse", { method: "POST", body });
+    setReading(false);
+    setFileInputKey((k) => k + 1);
     if (!response.ok) {
       const data = await response.json().catch(() => null);
-      setError(typeof data?.error === "string" ? data.error : "Could not upload the slip");
+      setError(typeof data?.error === "string" ? data.error : "Could not read the PDFs");
       return;
     }
-    setFile(null);
-    setFileInputKey((k) => k + 1);
+    const { results }: { results: ParseResponseItem[] } = await response.json();
+    const stamp = Date.now();
+    setPending((current) => [
+      ...current,
+      ...results.map((result, index): PendingSlip => ({
+        key: `${stamp}-${index}`,
+        file: files[index],
+        month: result.ok ? result.month ?? "" : "",
+        gross: result.ok ? paiseToInput(result.grossPaise) : "",
+        deductions: result.ok ? paiseToInput(result.deductionsPaise) : "",
+        warnings: result.ok ? result.warnings : [],
+        readError: result.ok ? null : result.error,
+        state: "ready",
+        saveError: null,
+      })),
+    ]);
+  }
+
+  function updatePending(key: string, patch: Partial<PendingSlip>) {
+    setPending((current) => current.map((p) => (p.key === key ? { ...p, ...patch } : p)));
+  }
+
+  function problemFor(item: PendingSlip): string | null {
+    if (item.readError) return item.readError;
+    if (!/^\d{4}-\d{2}$/.test(item.month)) return "Pick the month";
+    const gross = inputToPaise(item.gross);
+    const deductions = inputToPaise(item.deductions || "0");
+    if (gross === null || gross === 0) return "Enter Total Earnings";
+    if (deductions === null) return "Enter a valid Total Deductions";
+    if (deductions > gross) return "Deductions are more than earnings";
+    if (pending.some((p) => p.key !== item.key && p.state !== "saved" && p.month === item.month)) return "Another file has the same month";
+    return null;
+  }
+
+  const toSave = pending.filter((p) => p.state !== "saved" && problemFor(p) === null);
+
+  async function handleSaveAll() {
+    if (toSave.length === 0) return;
+    const replacing = toSave.filter((p) => slips.some((s) => s.month === p.month));
+    if (replacing.length > 0 && !window.confirm(`Replace the saved slip for ${replacing.map((p) => monthLabel(p.month)).join(", ")}?`)) {
+      return;
+    }
+    setSaving(true);
+    for (const item of toSave) {
+      updatePending(item.key, { state: "saving", saveError: null });
+      const body = new FormData();
+      body.set("month", item.month);
+      body.set("gross", item.gross);
+      body.set("deductions", item.deductions || "0");
+      body.set("file", item.file);
+      const response = await fetch("/api/salary-slips", { method: "POST", body });
+      if (response.ok) {
+        updatePending(item.key, { state: "saved" });
+      } else {
+        const data = await response.json().catch(() => null);
+        updatePending(item.key, { state: "failed", saveError: typeof data?.error === "string" ? data.error : "Upload failed" });
+      }
+    }
+    setSaving(false);
     fetchSlips();
   }
 
@@ -149,10 +213,118 @@ export function SalarySpikeManager() {
       </div>
 
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="mb-1 text-sm font-semibold text-slate-600">Upload Salary Slips</h2>
+        <p className="mb-3 text-xs text-slate-400">
+          Choose one or more slip PDFs. Month, Total Earnings and Total Deductions are read from each slip; check them, then save.
+        </p>
+        <label
+          className={`flex min-h-12 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-slate-300 px-3 text-sm font-medium text-slate-600 hover:border-emerald-400 hover:bg-emerald-50 ${reading ? "pointer-events-none opacity-60" : ""}`}
+        >
+          {reading ? "Reading slips..." : "Choose PDFs"}
+          <input
+            key={fileInputKey}
+            type="file"
+            accept="application/pdf,.pdf"
+            multiple
+            className="sr-only"
+            onChange={(e) => handleFilesChosen(e.target.files)}
+          />
+        </label>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+        {pending.length > 0 && (
+          <div className="mt-4">
+            <div className="divide-y divide-slate-100">
+              {pending.map((item) => {
+                const problem = item.state === "saved" ? null : problemFor(item);
+                const gross = inputToPaise(item.gross) ?? 0;
+                const net = gross - (inputToPaise(item.deductions || "0") ?? 0);
+                const replaces = item.state !== "saved" && slips.some((s) => s.month === item.month);
+                return (
+                  <div key={item.key} className="py-3">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <p className="min-w-0 truncate text-xs text-slate-500" title={item.file.name}>
+                        {item.file.name}
+                      </p>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {item.state === "saved" && <Badge tone="positive">Saved</Badge>}
+                        {item.state === "saving" && <Badge>Saving...</Badge>}
+                        {replaces && <Badge tone="warning">Replaces saved</Badge>}
+                        {item.state !== "saving" && item.state !== "saved" && (
+                          <button
+                            type="button"
+                            aria-label={`Remove ${item.file.name}`}
+                            onClick={() => setPending((current) => current.filter((p) => p.key !== item.key))}
+                            className="min-h-8 min-w-8 rounded-md text-slate-500 hover:bg-slate-100"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {!item.readError && (
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <input
+                          type="month"
+                          aria-label="Month"
+                          value={item.month}
+                          disabled={item.state === "saved"}
+                          onChange={(e) => updatePending(item.key, { month: e.target.value })}
+                          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                        />
+                        <AmountInput
+                          label="Earnings"
+                          value={item.gross}
+                          disabled={item.state === "saved"}
+                          onChange={(value) => updatePending(item.key, { gross: value })}
+                        />
+                        <AmountInput
+                          label="Deductions"
+                          value={item.deductions}
+                          disabled={item.state === "saved"}
+                          onChange={(value) => updatePending(item.key, { deductions: value })}
+                        />
+                        <p className="flex items-center text-sm font-semibold text-emerald-600">Net {formatPaiseAsInr(net)}</p>
+                      </div>
+                    )}
+                    {item.state !== "saved" &&
+                      item.warnings.map((warning) => (
+                        <p key={warning} className="mt-1 text-xs text-amber-700">
+                          {warning}
+                        </p>
+                      ))}
+                    {problem && <p className="mt-1 text-xs text-red-600">{problem}</p>}
+                    {item.saveError && <p className="mt-1 text-xs text-red-600">{item.saveError}</p>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setPending([])}
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                disabled={saving || toSave.length === 0}
+                onClick={handleSaveAll}
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {saving ? "Saving..." : `Save all (${toSave.length})`}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-1 text-sm font-semibold text-slate-600">Monthly Salary Slips</h2>
         <p className="mb-3 text-xs text-slate-400">Tap a month to open its slip.</p>
-
-        <div className="mb-4 divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100">
           {slips.length === 0 && <p className="py-4 text-sm text-slate-500">No salary slips uploaded yet.</p>}
           {slips.map((slip) => (
             <button
@@ -174,61 +346,6 @@ export function SalarySpikeManager() {
             </button>
           ))}
         </div>
-
-        <form onSubmit={handleUpload} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Month</label>
-            <input
-              type="month"
-              required
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Total Earnings (INR)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              value={gross}
-              onChange={(e) => setGross(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm sm:w-36"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Total Deductions (INR)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={deductions}
-              onChange={(e) => setDeductions(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm sm:w-36"
-            />
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-700">Slip PDF</label>
-            <input
-              key={fileInputKey}
-              type="file"
-              accept="application/pdf,.pdf"
-              required
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="w-full text-sm file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1.5 file:text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="col-span-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 sm:col-span-1"
-          >
-            {submitting ? "Uploading..." : "Upload"}
-          </button>
-        </form>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </div>
 
       {viewing && (
@@ -280,6 +397,29 @@ export function SalarySpikeManager() {
       )}
     </div>
   );
+}
+
+function AmountInput({ label, value, disabled, onChange }: { label: string; value: string; disabled: boolean; onChange: (value: string) => void }) {
+  return (
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      inputMode="decimal"
+      aria-label={label}
+      placeholder={label}
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+    />
+  );
+}
+
+function Badge({ children, tone }: { children: React.ReactNode; tone?: "positive" | "warning" }) {
+  const color =
+    tone === "positive" ? "bg-emerald-100 text-emerald-700" : tone === "warning" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600";
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{children}</span>;
 }
 
 function OverviewCard({ label, value, tone }: { label: string; value: number; tone?: "positive" | "negative" }) {
