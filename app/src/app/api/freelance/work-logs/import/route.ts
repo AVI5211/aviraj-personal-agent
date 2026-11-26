@@ -41,31 +41,24 @@ export async function POST(request: NextRequest) {
   const epicIdByName = new Map(existingEpics.map((e) => [normalizeEpicName(e.name), e._id]));
   const epicNameById = new Map(existingEpics.map((e) => [e._id.toString(), e.name]));
 
-  // The latest date already recorded per epic — anything on or before this for that
-  // epic is treated as "already imported", so re-pasting the whole historical sheet
-  // only ever adds rows that are genuinely new.
-  const maxDateByEpicName = new Map<string, string>();
-  const existingSignatures = new Set<string>();
+  // Dates that already have work logged per epic — a pasted row for one of those dates is
+  // treated as "already imported", so re-pasting the whole historical sheet only adds
+  // genuinely new days (even if Quick invoice later split that day's hours), while a
+  // missed earlier day can still be filled in after later days were logged.
+  const recordedEpicDates = new Set<string>();
   for (const log of existingLogs) {
     // An empty 0h entry (e.g. a blank manual log) isn't real work and must not block imports.
     if (log.billableHours <= 0 && log.nonBillableHours <= 0) continue;
     const epicName = log.epicId ? epicNameById.get(log.epicId.toString()) : undefined;
-    if (epicName) {
-      const key = normalizeEpicName(epicName);
-      const current = maxDateByEpicName.get(key);
-      if (!current || log.date > current) maxDateByEpicName.set(key, log.date);
-      existingSignatures.add(rowSignature(epicName, log.date, log.billableHours, log.description));
-    }
+    if (epicName) recordedEpicDates.add(`${normalizeEpicName(epicName)}|${log.date}`);
   }
 
   const seenInBatch = new Set<string>();
   const statuses: RowStatus[] = rows.map((row) => {
-    const key = normalizeEpicName(row.epicName);
-    const maxDate = maxDateByEpicName.get(key);
-    if (maxDate && row.date <= maxDate) return "already_recorded";
+    if (recordedEpicDates.has(`${normalizeEpicName(row.epicName)}|${row.date}`)) return "already_recorded";
 
     const signature = rowSignature(row.epicName, row.date, row.hours, row.description);
-    if (existingSignatures.has(signature) || seenInBatch.has(signature)) return "already_recorded";
+    if (seenInBatch.has(signature)) return "already_recorded";
     seenInBatch.add(signature);
     return "new";
   });
